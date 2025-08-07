@@ -3,10 +3,15 @@ import loginRouter from './route.js';
 import { sql, poolPromise } from './db.js';
 import employeeRouter from './employeeRouter.js';
 import cors from 'cors';
+import dotenv from 'dotenv';
+
+// Load environment variables
+dotenv.config();
+
 const app = express();
 
 app.use(cors({
-  origin: 'http://localhost:5173',
+  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
   methods: ['GET','POST','PUT','DELETE'],
   credentials: true,
 }));
@@ -20,6 +25,8 @@ app.get('/test', (req, res) => {
 app.use(loginRouter);
 app.use('/api', employeeRouter);
 
-app.listen(8080, () => {
-  console.log('Server running on port 8080');
+const PORT = process.env.PORT || 8080;
+
+app.listen(PORT, () => {
+  console.log(`Server running on port ${PORT}`);
 });
