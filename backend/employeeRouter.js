@@ -2,10 +2,31 @@ import express from 'express';
 import { sql, poolPromise } from './db.js';
 import xlsx from 'xlsx';
 import multer from 'multer';
+import { body, param, validationResult } from 'express-validator';
+import { authenticateToken, authorizeRoles } from './middleware/auth.js';
 
 const router = express.Router();
 
-router.post('/employees', async (req, res) => {
+// Employee validation middleware
+const employeeValidation = [
+  body('employee_id').trim().isLength({ min: 1, max: 20 }).withMessage('Employee ID is required and must be max 20 characters'),
+  body('name').trim().isLength({ min: 1, max: 100 }).withMessage('Name is required and must be max 100 characters'),
+  body('gender').isIn(['M', 'F']).withMessage('Gender must be M or F'),
+  body('date_of_birth').isISO8601().withMessage('Date of birth must be a valid date'),
+  body('email').optional().isEmail().withMessage('Email must be valid'),
+  body('phone').optional().isMobilePhone().withMessage('Phone must be valid')
+];
+
+router.post('/employees', authenticateToken, authorizeRoles('admin', 'hr_general'), employeeValidation, async (req, res) => {
+  // Check validation errors
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Invalid input', 
+      errors: errors.array() 
+    });
+  }
   const pool = await poolPromise;
   const transaction = new sql.Transaction(pool);
   try {
@@ -150,7 +171,19 @@ router.post('/employees', async (req, res) => {
 });
 
 // Update employee (PUT)
-router.put('/employees/:employee_id', async (req, res) => {
+router.put('/employees/:employee_id', authenticateToken, authorizeRoles('admin', 'hr_general'), [
+  param('employee_id').trim().isLength({ min: 1 }).withMessage('Employee ID is required'),
+  ...employeeValidation.slice(1) // Skip employee_id validation for updates
+], async (req, res) => {
+  // Check validation errors
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Invalid input', 
+      errors: errors.array() 
+    });
+  }
   const pool = await poolPromise;
   const transaction = new sql.Transaction(pool);
   try {
@@ -309,7 +342,18 @@ router.put('/employees/:employee_id', async (req, res) => {
 
 
 // DELETE employee by ID
-router.delete('/employees/:employee_id', async (req, res) => {
+router.delete('/employees/:employee_id', authenticateToken, authorizeRoles('admin'), [
+  param('employee_id').trim().isLength({ min: 1 }).withMessage('Employee ID is required')
+], async (req, res) => {
+  // Check validation errors
+  const errors = validationResult(req);
+  if (!errors.isEmpty()) {
+    return res.status(400).json({ 
+      success: false, 
+      message: 'Invalid input', 
+      errors: errors.array() 
+    });
+  }
   const pool = await poolPromise;
   const transaction = new sql.Transaction(pool);
 
@@ -362,7 +406,7 @@ router.delete('/employees/:employee_id', async (req, res) => {
 });
 
 // Get all employees with joined tables
-router.get('/employees', async (req, res) => {
+router.get('/employees', authenticateToken, async (req, res) => {
   try {
     const pool = await poolPromise;
     const query = `
@@ -471,7 +515,7 @@ function safeString(val) {
   return String(val);
 }
 
-router.post('/employees/upload', upload.single('file'), async (req, res) => {
+router.post('/employees/upload', authenticateToken, authorizeRoles('admin', 'hr_general'), upload.single('file'), async (req, res) => {
   if (!req.file)
     return res.status(400).json({ success: false, message: 'No file uploaded', processedRows: 0, errors: ['No file uploaded'] });
 
