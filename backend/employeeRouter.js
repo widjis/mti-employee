@@ -344,16 +344,7 @@ router.delete('/employees/:employee_id',
   employeeIdValidation, 
   handleValidationErrors, 
   async (req, res) => {
-  // Check validation errors
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Invalid input', 
-      errors: errors.array() 
-    });
-  }
-  const pool = await poolPromise;
+  const pool = await getPool();
   const transaction = new sql.Transaction(pool);
 
   try {
@@ -405,9 +396,14 @@ router.delete('/employees/:employee_id',
 });
 
 // Get all employees with joined tables
-router.get('/employees', authenticateToken, async (req, res) => {
+router.get('/employees', 
+  authenticateToken, 
+  preventSQLInjection,
+  employeeQueryValidation, 
+  handleValidationErrors, 
+  async (req, res) => {
   try {
-    const pool = await poolPromise;
+    const pool = await getPool();
     const query = `
      SELECT 
      ecore.*,
@@ -513,7 +509,14 @@ function safeString(val) {
   return String(val);
 }
 
-router.post('/employees/upload', authenticateToken, authorizeRoles('admin', 'hr_general'), upload.single('file'), async (req, res) => {
+router.post('/employees/upload', 
+  authenticateToken, 
+  authorizeRoles('admin', 'hr_general'), 
+  preventSQLInjection,
+  upload.single('file'), 
+  fileUploadValidation, 
+  handleValidationErrors, 
+  async (req, res) => {
   if (!req.file)
     return res.status(400).json({ success: false, message: 'No file uploaded', processedRows: 0, errors: ['No file uploaded'] });
 

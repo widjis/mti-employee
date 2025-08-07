@@ -2,9 +2,442 @@ export interface User {
   id: string;
   username: string;
   name: string;
-  role: 'admin' | 'hr_general' | 'finance' | 'dep_rep';
+  role: 'superadmin' | 'admin' | 'hr_general' | 'finance' | 'dep_rep';
   department?: string;
 }
+
+// Role-based access control matrix
+export interface Permission {
+  create: boolean;
+  read: boolean;
+  update: boolean;
+  delete: boolean;
+  export: boolean;
+  import: boolean;
+  audit: boolean;
+  manage_users: boolean;
+  system_config: boolean;
+}
+
+export interface RolePermissions {
+  employees: Permission;
+  users: Permission;
+  reports: Permission;
+  system: Permission;
+}
+
+// Role-based access control matrix
+export const ROLE_PERMISSIONS: Record<User['role'], RolePermissions> = {
+  superadmin: {
+    employees: {
+      create: true,
+      read: true,
+      update: true,
+      delete: true,
+      export: true,
+      import: true,
+      audit: true,
+      manage_users: true,
+      system_config: true
+    },
+    users: {
+      create: true,
+      read: true,
+      update: true,
+      delete: true,
+      export: true,
+      import: true,
+      audit: true,
+      manage_users: true,
+      system_config: true
+    },
+    reports: {
+      create: true,
+      read: true,
+      update: true,
+      delete: true,
+      export: true,
+      import: true,
+      audit: true,
+      manage_users: true,
+      system_config: true
+    },
+    system: {
+      create: true,
+      read: true,
+      update: true,
+      delete: true,
+      export: true,
+      import: true,
+      audit: true,
+      manage_users: true,
+      system_config: true
+    }
+  },
+  admin: {
+    employees: {
+      create: true,
+      read: true,
+      update: true,
+      delete: true,
+      export: true,
+      import: true,
+      audit: true,
+      manage_users: false,
+      system_config: false
+    },
+    users: {
+      create: false,
+      read: true,
+      update: false,
+      delete: false,
+      export: false,
+      import: false,
+      audit: true,
+      manage_users: false,
+      system_config: false
+    },
+    reports: {
+      create: true,
+      read: true,
+      update: true,
+      delete: true,
+      export: true,
+      import: false,
+      audit: true,
+      manage_users: false,
+      system_config: false
+    },
+    system: {
+      create: false,
+      read: true,
+      update: false,
+      delete: false,
+      export: false,
+      import: false,
+      audit: true,
+      manage_users: false,
+      system_config: false
+    }
+  },
+  hr_general: {
+    employees: {
+      create: true,
+      read: true,
+      update: true,
+      delete: false,
+      export: true,
+      import: true,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    },
+    users: {
+      create: false,
+      read: false,
+      update: false,
+      delete: false,
+      export: false,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    },
+    reports: {
+      create: true,
+      read: true,
+      update: false,
+      delete: false,
+      export: true,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    },
+    system: {
+      create: false,
+      read: false,
+      update: false,
+      delete: false,
+      export: false,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    }
+  },
+  finance: {
+    employees: {
+      create: false,
+      read: true,
+      update: true,
+      delete: false,
+      export: true,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    },
+    users: {
+      create: false,
+      read: false,
+      update: false,
+      delete: false,
+      export: false,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    },
+    reports: {
+      create: true,
+      read: true,
+      update: false,
+      delete: false,
+      export: true,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    },
+    system: {
+      create: false,
+      read: false,
+      update: false,
+      delete: false,
+      export: false,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    }
+  },
+  dep_rep: {
+    employees: {
+      create: false,
+      read: true,
+      update: false,
+      delete: false,
+      export: true,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    },
+    users: {
+      create: false,
+      read: false,
+      update: false,
+      delete: false,
+      export: false,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    },
+    reports: {
+      create: false,
+      read: true,
+      update: false,
+      delete: false,
+      export: true,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    },
+    system: {
+      create: false,
+      read: false,
+      update: false,
+      delete: false,
+      export: false,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    }
+  }
+};
+
+// Helper function to check permissions
+export const hasPermission = (
+  userRole: User['role'],
+  module: keyof RolePermissions,
+  action: keyof Permission
+): boolean => {
+  return ROLE_PERMISSIONS[userRole]?.[module]?.[action] || false;
+};
+
+// Navigation items based on role
+export interface NavigationItem {
+  id: string;
+  label: string;
+  icon: string;
+  path: string;
+  requiredPermission?: {
+    module: keyof RolePermissions;
+    action: keyof Permission;
+  };
+  children?: NavigationItem[];
+}
+
+export const NAVIGATION_ITEMS: NavigationItem[] = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: 'LayoutDashboard',
+    path: '/dashboard'
+  },
+  {
+    id: 'employees',
+    label: 'Employee Management',
+    icon: 'Users',
+    path: '/employees',
+    requiredPermission: {
+      module: 'employees',
+      action: 'read'
+    },
+    children: [
+      {
+        id: 'employees-list',
+        label: 'Employee List',
+        icon: 'List',
+        path: '/employees/list',
+        requiredPermission: {
+          module: 'employees',
+          action: 'read'
+        }
+      },
+      {
+        id: 'employees-add',
+        label: 'Add Employee',
+        icon: 'UserPlus',
+        path: '/employees/add',
+        requiredPermission: {
+          module: 'employees',
+          action: 'create'
+        }
+      },
+      {
+        id: 'employees-import',
+        label: 'Import Employees',
+        icon: 'Upload',
+        path: '/employees/import',
+        requiredPermission: {
+          module: 'employees',
+          action: 'import'
+        }
+      }
+    ]
+  },
+  {
+    id: 'reports',
+    label: 'Reports & Analytics',
+    icon: 'BarChart3',
+    path: '/reports',
+    requiredPermission: {
+      module: 'reports',
+      action: 'read'
+    },
+    children: [
+      {
+        id: 'reports-employee',
+        label: 'Employee Reports',
+        icon: 'FileText',
+        path: '/reports/employee',
+        requiredPermission: {
+          module: 'reports',
+          action: 'read'
+        }
+      },
+      {
+        id: 'reports-analytics',
+        label: 'Analytics Dashboard',
+        icon: 'TrendingUp',
+        path: '/reports/analytics',
+        requiredPermission: {
+          module: 'reports',
+          action: 'read'
+        }
+      }
+    ]
+  },
+  {
+    id: 'users',
+    label: 'User Management',
+    icon: 'UserCog',
+    path: '/users',
+    requiredPermission: {
+      module: 'users',
+      action: 'read'
+    },
+    children: [
+      {
+        id: 'users-list',
+        label: 'User List',
+        icon: 'Users',
+        path: '/users/list',
+        requiredPermission: {
+          module: 'users',
+          action: 'read'
+        }
+      },
+      {
+        id: 'users-roles',
+        label: 'Role Management',
+        icon: 'Shield',
+        path: '/users/roles',
+        requiredPermission: {
+          module: 'users',
+          action: 'manage_users'
+        }
+      }
+    ]
+  },
+  {
+    id: 'audit',
+    label: 'Audit Trail',
+    icon: 'History',
+    path: '/audit',
+    requiredPermission: {
+      module: 'system',
+      action: 'audit'
+    }
+  },
+  {
+    id: 'system',
+    label: 'System Settings',
+    icon: 'Settings',
+    path: '/system',
+    requiredPermission: {
+      module: 'system',
+      action: 'system_config'
+    },
+    children: [
+      {
+        id: 'system-config',
+        label: 'Configuration',
+        icon: 'Cog',
+        path: '/system/config',
+        requiredPermission: {
+          module: 'system',
+          action: 'system_config'
+        }
+      },
+      {
+        id: 'system-backup',
+        label: 'Backup & Restore',
+        icon: 'Database',
+        path: '/system/backup',
+        requiredPermission: {
+          module: 'system',
+          action: 'system_config'
+        }
+      }
+    ]
+  }
+];
 
 export interface Employee {
   insurance_endorsement: 'Y' | 'N' | '';
@@ -80,6 +513,10 @@ interface AccessConfig {
 }
 
 export const accessConfigs: Record<User['role'], AccessConfig> = {
+  superadmin: {
+    canViewRow: () => true, // can view all
+    visibleFields: ['insurance_endorsement',	'insurance_owlexa',	'insurance_fpg',	'employee_id',	'imip_id',	'name',	'gender',	'place_of_birth',	'date_of_birth',	'age',	'marital_status',	'tax_status',	'spouse_name',	'child_name_1',	'child_name_2',	'child_name_3',	'religion',	'nationality',	'blood_type',	'phone_number',	'emergency_contact_name',	'emergency_contact_phone',	'email',	'kartu_keluarga_no',	'ktp_no',	'address',	'city',	'point_of_hire',	'point_of_origin',	'education',	'schedule_type',	'first_join_date_merdeka',	'transfer_merdeka',	'first_join_date',	'join_date',	'employment_status',	'end_contract',	'years_in_service',	'company_office',	'work_location',	'division',	'department',	'section',	'direct_report',	'job_title',	'grade',	'position_grade',	'group_job_title',	'bank_name',	'account_name',	'account_no',	'npwp',	'bpjs_tk',	'bpjs_kes',	'status_bpjs_kes',	'travel_in',	'travel_out',	'terminated_date',	'terminated_type',	'terminated_reason',	'blacklist_mti',	'blacklist_imip',	'kitas_no',	'passport_no', 'status'],
+  },
   admin: {
     canViewRow: () => true, // can view all
     visibleFields: ['insurance_endorsement',	'insurance_owlexa',	'insurance_fpg',	'employee_id',	'imip_id',	'name',	'gender',	'place_of_birth',	'date_of_birth',	'age',	'marital_status',	'tax_status',	'spouse_name',	'child_name_1',	'child_name_2',	'child_name_3',	'religion',	'nationality',	'blood_type',	'phone_number',	'emergency_contact_name',	'emergency_contact_phone',	'email',	'kartu_keluarga_no',	'ktp_no',	'address',	'city',	'point_of_hire',	'point_of_origin',	'education',	'schedule_type',	'first_join_date_merdeka',	'transfer_merdeka',	'first_join_date',	'join_date',	'employment_status',	'end_contract',	'years_in_service',	'company_office',	'work_location',	'division',	'department',	'section',	'direct_report',	'job_title',	'grade',	'position_grade',	'group_job_title',	'bank_name',	'account_name',	'account_no',	'npwp',	'bpjs_tk',	'bpjs_kes',	'status_bpjs_kes',	'travel_in',	'travel_out',	'terminated_date',	'terminated_type',	'terminated_reason',	'blacklist_mti',	'blacklist_imip',	'kitas_no',	'passport_no', 'status'],

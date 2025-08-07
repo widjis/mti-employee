@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 import { 
@@ -9,7 +9,9 @@ import {
   DropdownMenuTrigger 
 } from '@/components/ui/dropdown-menu';
 import { Badge } from '@/components/ui/badge';
-import { Building, LogOut, Settings, User, Shield, Eye } from 'lucide-react';
+import { Building, LogOut, Settings, User, Shield, Eye, Menu, Crown, ShieldCheck, Users2, Calculator, Building2 } from 'lucide-react';
+import Sidebar from './Sidebar';
+import { cn } from '@/lib/utils';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;

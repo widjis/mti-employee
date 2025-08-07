@@ -114,56 +114,54 @@ export const getPool = async () => {
 };
 
 /**
- * Execute a SQL query with automatic connection management
+ * Execute a SQL query with parameters
  * @param {string} query - SQL query string
  * @param {Object} params - Query parameters
- * @returns {Promise<sql.IResult>} Query result
+ * @returns {Promise<Object>} Query result
  */
 export const executeQuery = async (query, params = {}) => {
     try {
-        const connectionPool = await getPool();
-        const request = connectionPool.request();
+        const pool = await getPool();
+        const request = pool.request();
         
-        // Add parameters to request
-        Object.keys(params).forEach(key => {
-            request.input(key, params[key]);
-        });
+        // Add parameters to the request
+        for (const [key, value] of Object.entries(params)) {
+            request.input(key, value);
+        }
         
         const result = await request.query(query);
         return result;
     } catch (error) {
-        console.error('❌ Query execution failed:', error.message);
-        console.error('📝 Query:', query);
-        console.error('🔧 Params:', params);
-        throw error;
+        console.error('Database query error:', error);
+        throw new Error(`Database query failed: ${error.message}`);
     }
 };
 
 /**
- * Execute a stored procedure with automatic connection management
- * @param {string} procedureName - Stored procedure name
+ * Execute a stored procedure with parameters
+ * @param {string} procedureName - Name of the stored procedure
  * @param {Object} params - Procedure parameters
- * @returns {Promise<sql.IResult>} Procedure result
+ * @returns {Promise<Object>} Procedure result
  */
 export const executeProcedure = async (procedureName, params = {}) => {
     try {
-        const connectionPool = await getPool();
-        const request = connectionPool.request();
+        const pool = await getPool();
+        const request = pool.request();
         
-        // Add parameters to request
-        Object.keys(params).forEach(key => {
-            request.input(key, params[key]);
-        });
+        // Add parameters to the request
+        for (const [key, value] of Object.entries(params)) {
+            request.input(key, value);
+        }
         
         const result = await request.execute(procedureName);
         return result;
     } catch (error) {
-        console.error('❌ Procedure execution failed:', error.message);
-        console.error('📝 Procedure:', procedureName);
-        console.error('🔧 Params:', params);
-        throw error;
+        console.error('Database procedure error:', error);
+        throw new Error(`Database procedure failed: ${error.message}`);
     }
 };
+
+
 
 /**
  * Close database connection pool gracefully
