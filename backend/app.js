@@ -1,16 +1,26 @@
 import express from 'express';
 import loginRouter from './route.js';
-import { sql, poolPromise } from './db.js';
 import employeeRouter from './employeeRouter.js';
 import openProjectRoutes from './routes/openProjectRoutes.js';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { globalErrorHandler, handleNotFound } from './middleware/errorHandler.js';
+import config, { validateConfig, getConfigSummary } from './config/app.js';
+import { initializeDatabase, closeDatabase, testConnection } from './config/database.js';
 
-// Load environment variables
-dotenv.config();
+// Validate configuration on startup
+const configValidation = validateConfig();
+if (!configValidation.isValid) {
+    console.error('❌ Configuration validation failed:');
+    configValidation.errors.forEach(error => console.error(`  - ${error}`));
+    process.exit(1);
+}
+
+if (configValidation.warnings.length > 0) {
+    console.warn('⚠️  Configuration warnings:');
+    configValidation.warnings.forEach(warning => console.warn(`  - ${warning}`));
+}
 
 const app = express();
 
@@ -29,8 +39,8 @@ app.use(helmet({
 
 // Rate limiting
 const limiter = rateLimit({
-  windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  windowMs: config.security.rateLimitWindowMs,
+  max: config.security.rateLimitMaxRequests,
   message: {
     success: false,
     message: 'Too many requests from this IP, please try again later.'
@@ -43,24 +53,38 @@ app.use(limiter);
 
 // CORS configuration
 app.use(cors({
-  origin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  origin: config.server.corsOrigin,
   methods: ['GET','POST','PUT','DELETE'],
   credentials: true,
   optionsSuccessStatus: 200
 }));
 
 // Body parsing middleware
-app.use(express.json({ limit: '10mb' }));
-app.use(express.urlencoded({ extended: true, limit: '10mb' }));
+app.use(express.json({ limit: config.server.bodyLimit }));
+app.use(express.urlencoded({ extended: true, limit: config.server.bodyLimit }));
 
 // Health check endpoint
-app.get('/health', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'Server is healthy',
-    timestamp: new Date().toISOString(),
-    uptime: process.uptime()
-  });
+app.get('/health', async (req, res) => {
+  try {
+    const dbHealthy = await testConnection();
+    const status = dbHealthy ? 200 : 503;
+    
+    res.status(status).json({
+      success: dbHealthy,
+      message: dbHealthy ? 'Server is running' : 'Database connection failed',
+      timestamp: new Date().toISOString(),
+      database: dbHealthy ? 'connected' : 'disconnected',
+      environment: config.server.nodeEnv,
+      uptime: process.uptime()
+    });
+  } catch (error) {
+    res.status(503).json({
+      success: false,
+      message: 'Health check failed',
+      error: error.message,
+      timestamp: new Date().toISOString()
+    });
+  }
 });
 
 // Legacy test endpoint
@@ -79,21 +103,55 @@ app.use(handleNotFound);
 // Global error handler
 app.use(globalErrorHandler);
 
-const PORT = process.env.PORT || 8080;
+// Initialize database before starting server
+const startServer = async () => {
+    try {
+        // Initialize database connection
+        await initializeDatabase();
+        
+        // Start the server
+        const server = app.listen(config.server.port, () => {
+            console.log('🚀 MTI Employee Management System');
+            console.log(`📡 Server running on port ${config.server.port}`);
+            console.log(`🌍 Environment: ${config.server.nodeEnv}`);
+            console.log(`🔗 CORS Origin: ${config.server.corsOrigin}`);
+            console.log('📊 Configuration Summary:', JSON.stringify(getConfigSummary(), null, 2));
+            console.log('✅ Server startup completed successfully');
+        });
+        
+        return server;
+    } catch (error) {
+        console.error('❌ Server startup failed:', error.message);
+        process.exit(1);
+    }
+};
 
-app.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
-  console.log(`📊 Environment: ${process.env.NODE_ENV || 'development'}`);
-  console.log(`🔗 CORS Origin: ${process.env.CORS_ORIGIN || 'http://localhost:5173'}`);
+// Start the server
+startServer();
+
+// Graceful shutdown handlers
+const gracefulShutdown = async (signal) => {
+    console.log(`\n${signal} received, shutting down gracefully...`);
+    try {
+        await closeDatabase();
+        console.log('✅ Graceful shutdown completed');
+        process.exit(0);
+    } catch (error) {
+        console.error('❌ Error during shutdown:', error.message);
+        process.exit(1);
+    }
+};
+
+process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
+process.on('SIGINT', () => gracefulShutdown('SIGINT'));
+
+// Handle uncaught exceptions
+process.on('uncaughtException', (error) => {
+    console.error('❌ Uncaught Exception:', error);
+    gracefulShutdown('UNCAUGHT_EXCEPTION');
 });
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  console.log('SIGTERM received, shutting down gracefully');
-  process.exit(0);
-});
-
-process.on('SIGINT', () => {
-  console.log('SIGINT received, shutting down gracefully');
-  process.exit(0);
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('❌ Unhandled Rejection at:', promise, 'reason:', reason);
+    gracefulShutdown('UNHANDLED_REJECTION');
 });

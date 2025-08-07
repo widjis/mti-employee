@@ -1,33 +1,34 @@
 import express from 'express';
-import { sql, poolPromise } from './db.js';
+import { executeQuery, getPool, sql } from './config/database.js';
+import config from './config/app.js';
 import xlsx from 'xlsx';
 import multer from 'multer';
-import { body, param, validationResult } from 'express-validator';
+import path from 'path';
+import fs from 'fs';
 import { authenticateToken, authorizeRoles } from './middleware/auth.js';
+import { 
+    employeeValidation, 
+    employeeUpdateValidation, 
+    employeeIdValidation, 
+    employeeQueryValidation,
+    fileUploadValidation,
+    handleValidationErrors, 
+    preventSQLInjection 
+} from './middleware/validation.js';
 
 const router = express.Router();
 
-// Employee validation middleware
-const employeeValidation = [
-  body('employee_id').trim().isLength({ min: 1, max: 20 }).withMessage('Employee ID is required and must be max 20 characters'),
-  body('name').trim().isLength({ min: 1, max: 100 }).withMessage('Name is required and must be max 100 characters'),
-  body('gender').isIn(['M', 'F']).withMessage('Gender must be M or F'),
-  body('date_of_birth').isISO8601().withMessage('Date of birth must be a valid date'),
-  body('email').optional().isEmail().withMessage('Email must be valid'),
-  body('phone').optional().isMobilePhone().withMessage('Phone must be valid')
-];
+// Validation error handler (moved to validation middleware)
+// Employee validation rules are now imported from validation.js
 
-router.post('/employees', authenticateToken, authorizeRoles('admin', 'hr_general'), employeeValidation, async (req, res) => {
-  // Check validation errors
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Invalid input', 
-      errors: errors.array() 
-    });
-  }
-  const pool = await poolPromise;
+router.post('/employees', 
+  authenticateToken, 
+  authorizeRoles('admin', 'hr_general'), 
+  preventSQLInjection,
+  employeeValidation, 
+  handleValidationErrors, 
+  async (req, res) => {
+  const pool = await getPool();
   const transaction = new sql.Transaction(pool);
   try {
     await transaction.begin();
@@ -171,20 +172,14 @@ router.post('/employees', authenticateToken, authorizeRoles('admin', 'hr_general
 });
 
 // Update employee (PUT)
-router.put('/employees/:employee_id', authenticateToken, authorizeRoles('admin', 'hr_general'), [
-  param('employee_id').trim().isLength({ min: 1 }).withMessage('Employee ID is required'),
-  ...employeeValidation.slice(1) // Skip employee_id validation for updates
-], async (req, res) => {
-  // Check validation errors
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Invalid input', 
-      errors: errors.array() 
-    });
-  }
-  const pool = await poolPromise;
+router.put('/employees/:employee_id', 
+  authenticateToken, 
+  authorizeRoles('admin', 'hr_general'), 
+  preventSQLInjection,
+  employeeUpdateValidation, 
+  handleValidationErrors, 
+  async (req, res) => {
+  const pool = await getPool();
   const transaction = new sql.Transaction(pool);
   try {
     await transaction.begin();
@@ -342,9 +337,13 @@ router.put('/employees/:employee_id', authenticateToken, authorizeRoles('admin',
 
 
 // DELETE employee by ID
-router.delete('/employees/:employee_id', authenticateToken, authorizeRoles('admin'), [
-  param('employee_id').trim().isLength({ min: 1 }).withMessage('Employee ID is required')
-], async (req, res) => {
+router.delete('/employees/:employee_id', 
+  authenticateToken, 
+  authorizeRoles('admin'), 
+  preventSQLInjection,
+  employeeIdValidation, 
+  handleValidationErrors, 
+  async (req, res) => {
   // Check validation errors
   const errors = validationResult(req);
   if (!errors.isEmpty()) {
@@ -479,14 +478,13 @@ router.get('/employees', authenticateToken, async (req, res) => {
 });
 
 const upload = multer({
-  limits: { fileSize: 10 * 1024 * 1024 }, // 10 MB
+  limits: { fileSize: config.upload.maxSize },
   fileFilter: (req, file, cb) => {
-    const allowed = [
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.ms-excel',
-    ];
-    if (allowed.includes(file.mimetype)) cb(null, true);
-    else cb(new Error('Only Excel files allowed'));
+    if (config.upload.allowedTypes.includes(file.mimetype)) {
+      cb(null, true);
+    } else {
+      cb(new Error(`File type ${file.mimetype} not allowed. Allowed types: ${config.upload.allowedTypes.join(', ')}`));
+    }
   },
   storage: multer.memoryStorage(),
 });

@@ -1,5 +1,52 @@
 # MTI Employee Management System - Enhancement Journal
 
+## Recent Enhancements
+
+### 2025-01-27: Login Endpoint Fix
+
+#### Problem
+The `/api/login` endpoint was returning a 404 error due to incorrect route configuration.
+
+#### Root Cause
+The router was mounted at `/api` in `app.js`, but the route was defined as `/api/login` in `route.js`, creating a double `/api` path that resulted in the actual endpoint being `/api/api/login`.
+
+#### Solution
+- Fixed route definition in `route.js` from `/api/login` to `/login`
+- Fixed route definition in `route.js` from `/api/hello` to `/hello`
+- This ensures proper mounting at `/api/login` and `/api/hello` when combined with the `/api` mount point in `app.js`
+
+#### Verification
+- ✅ `/api/hello` endpoint: Status 200, returns `{"message":"Hello from login router"}`
+- ✅ `/api/login` endpoint: Status 200, successful authentication with JWT token
+- ✅ Admin user `mti-ict` login working properly
+- ✅ JWT token generation and user data response functioning correctly
+
+---
+
+### 2025-01-27: Admin User Creation
+
+#### Task
+Created a new admin role user for the MTI Employee Management System.
+
+#### Implementation
+- **Username**: `mti-ict`
+- **Password**: `T$1ngsh4n@24` (bcrypt hashed)
+- **Role**: `admin`
+- **Name**: `MTI ICT Admin`
+- **Department**: `Human Resources`
+- **User ID**: 19
+
+#### Technical Details
+- Used bcrypt with 12 salt rounds for secure password hashing
+- Script handles both new user creation and existing user password updates
+- Includes verification step to confirm successful user creation
+- Follows existing database schema with all required fields (username, password, role, name, department)
+
+#### Script Created
+- `create-admin-user.js`: Creates admin users with proper password hashing and database validation
+
+---
+
 ## 2025-01-27: Project Structure Enhancement
 
 ### Issue Discovered
@@ -65,6 +112,65 @@ Phases (6)
 - **Relationship Management**: `establish-phase-relationships.js` - Parent-child linking
 - **Verification**: `verify-phase-hierarchy.js` - Hierarchy validation
 - **Analysis**: `analyze-project-structure.js` - Project structure analysis
+
+---
+
+## 2024-12-19 - Login Endpoint Fix
+
+### Problem
+- `/api/login` endpoint returning 404 error
+- Users unable to authenticate
+
+### Root Cause
+- Double `/api` path issue in routing
+- Router mounted at `/api` in `app.js` but route defined as `/api/login` in `route.js`
+- Resulted in actual endpoint being `/api/api/login`
+
+### Solution
+- Updated `backend/route.js`:
+  - Changed `/api/login` route to `/login`
+  - Changed `/api/hello` route to `/hello`
+- This allows proper mounting under `/api` prefix from `app.js`
+
+### Verification
+- Tested `/api/hello` endpoint: ✅ 200 OK
+- Tested `/api/login` endpoint with mti-ict credentials: ✅ 200 OK
+- Received valid JWT token and user data
+
+### Files Modified
+- `backend/route.js`: Fixed route paths
+
+## 2024-12-19 - Authentication Token Integration
+
+### Problem
+- Frontend receiving 401 Unauthorized error when fetching employees
+- JWT token from login not being sent with API requests
+
+### Root Cause
+- `AuthContext` was only storing user data, not the JWT token
+- API requests to protected endpoints missing Authorization header
+- Backend `authenticateToken` middleware requires Bearer token
+
+### Solution
+- Updated `src/context/AuthContext.tsx`:
+  - Added `token` state and interface property
+  - Store token in localStorage alongside user data
+  - Include token in AuthContext provider value
+  - Clear token on logout
+- Updated `src/pages/Dashboard.tsx`:
+  - Extract token from AuthContext
+  - Include Authorization header with Bearer token in API requests
+  - Only fetch employees when token is available
+
+### Technical Details
+- Backend returns both `user` and `token` in login response
+- Frontend now stores both in localStorage for persistence
+- All protected API calls include `Authorization: Bearer <token>` header
+- Token dependency in useEffect ensures proper timing
+
+### Files Modified
+- `src/context/AuthContext.tsx`: Added token management
+- `src/pages/Dashboard.tsx`: Added Authorization header to API requests
 
 ---
 

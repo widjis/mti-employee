@@ -1,48 +1,26 @@
 import express from 'express';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
-import { body, validationResult } from 'express-validator';
-import { sql, poolPromise } from './db.js';
-import dotenv from 'dotenv';
-
-// Load environment variables
-dotenv.config();
+import { executeQuery, sql } from './config/database.js';
+import config from './config/app.js';
+import { loginValidation, handleValidationErrors, preventSQLInjection } from './middleware/validation.js';
 
 const router = express.Router();
 
-// Input validation middleware
-const loginValidation = [
-  body('username')
-    .trim()
-    .isLength({ min: 3, max: 50 })
-    .withMessage('Username must be between 3 and 50 characters')
-    .matches(/^[a-zA-Z0-9._-]+$/)
-    .withMessage('Username can only contain letters, numbers, dots, underscores, and hyphens'),
-  body('password')
-    .isLength({ min: 1 })
-    .withMessage('Password is required')
-];
-
-// POST /api/login
-router.post('/api/login', loginValidation, async (req, res) => {
-  // Check validation errors
-  const errors = validationResult(req);
-  if (!errors.isEmpty()) {
-    return res.status(400).json({ 
-      success: false, 
-      message: 'Invalid input', 
-      errors: errors.array() 
-    });
-  }
+// POST /login (mounted at /api, so becomes /api/login)
+router.post('/login', 
+    preventSQLInjection,
+    loginValidation,
+    handleValidationErrors,
+    async (req, res) => {
 
   const { username, password } = req.body;
 
   try {
-    const pool = await poolPromise;
-
-    const result = await pool.request()
-      .input('username', sql.VarChar, username)
-      .query('SELECT * FROM dbo.login WHERE username = @username');
+    const result = await executeQuery(
+      'SELECT * FROM dbo.login WHERE username = @username',
+      { username }
+    );
 
     if (result.recordset.length === 0) {
       return res.status(401).json({ success: false, message: 'Invalid credentials' });
@@ -64,8 +42,11 @@ router.post('/api/login', loginValidation, async (req, res) => {
         username: user.username, 
         role: user.Role 
       },
-      process.env.JWT_SECRET || 'fallback-secret-key',
-      { expiresIn: process.env.JWT_EXPIRES_IN || '24h' }
+      config.jwt.secret,
+      { 
+        expiresIn: config.jwt.expiresIn,
+        algorithm: config.jwt.algorithm
+      }
     );
 
     return res.json({
@@ -85,7 +66,7 @@ router.post('/api/login', loginValidation, async (req, res) => {
   }
 });
 
-router.get('/api/hello', (req, res) => {
+router.get('/hello', (req, res) => {
   res.json({ message: 'Hello from login router' });
 });
 

@@ -1,8 +1,5 @@
 import jwt from 'jsonwebtoken';
-import dotenv from 'dotenv';
-
-// Load environment variables
-dotenv.config();
+import config from '../config/app.js';
 
 /**
  * JWT Authentication Middleware
@@ -19,7 +16,7 @@ export const authenticateToken = (req, res, next) => {
     });
   }
 
-  jwt.verify(token, process.env.JWT_SECRET || 'fallback-secret-key', (err, user) => {
+  jwt.verify(token, config.jwt.secret, { algorithms: [config.jwt.algorithm] }, (err, user) => {
     if (err) {
       return res.status(403).json({ 
         success: false, 

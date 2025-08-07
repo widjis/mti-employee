@@ -22,7 +22,7 @@ import {
 import { useToast } from '@/hooks/use-toast';
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
   const { toast } = useToast();
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -35,7 +35,12 @@ const Dashboard = () => {
     const fetchEmployees = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch('http://localhost:8080/api/employees');
+        const res = await fetch('http://localhost:8080/api/employees', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
         if (!res.ok) throw new Error('Failed to fetch employee data');
         const employeesData: Employee[] = await res.json();
 
@@ -64,8 +69,10 @@ const Dashboard = () => {
       }
     };
 
-    fetchEmployees();
-  }, []);
+    if (token) {
+      fetchEmployees();
+    }
+  }, [token]);
 
   const handleEmployeeView = (employee: Employee) => {
     toast({
