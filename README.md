@@ -50,6 +50,28 @@ This directory contains comprehensive documentation for the enhancement of the M
   - Success criteria and KPIs
   - Risk mitigation strategies
 
+### 🔗 [OPENPROJECT_INTEGRATION.md](./doc/OPENPROJECT_INTEGRATION.md)
+**OpenProject API integration guide**
+- **Purpose**: Complete guide for integrating with OpenProject for project management
+- **Content**: API setup, authentication, implementation examples, and best practices
+- **Audience**: Developers, system integrators, project managers
+- **Key Features**:
+  - Step-by-step API integration
+  - Authentication setup (API Key & OAuth2)
+  - Employee-to-user synchronization
+  - Project and task management integration
+
+### ⚡ [OPENPROJECT_QUICKSTART.md](./doc/OPENPROJECT_QUICKSTART.md)
+**5-minute OpenProject setup guide**
+- **Purpose**: Quick start guide for immediate OpenProject integration
+- **Content**: Rapid setup steps, testing procedures, and troubleshooting
+- **Audience**: Developers who need immediate integration
+- **Key Features**:
+  - 5-minute setup process
+  - Connection testing scripts
+  - Common issue solutions
+  - Immediate next steps
+
 ## 🚀 Getting Started
 
 ### For Project Managers

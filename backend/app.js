@@ -2,6 +2,7 @@ import express from 'express';
 import loginRouter from './route.js';
 import { sql, poolPromise } from './db.js';
 import employeeRouter from './employeeRouter.js';
+import openProjectRoutes from './routes/openProjectRoutes.js';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import helmet from 'helmet';
@@ -70,6 +71,7 @@ app.get('/test', (req, res) => {
 // API routes
 app.use('/api', loginRouter);
 app.use('/api', employeeRouter);
+app.use('/api/openproject', openProjectRoutes);
 
 // Handle unmatched routes
 app.use(handleNotFound);
