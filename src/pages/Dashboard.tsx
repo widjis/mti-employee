@@ -5,7 +5,7 @@ import EmployeeTable from '@/components/EmployeeTable';
 import ExcelUpload from '@/components/ExcelUpload';
 import EmployeeEditForm from '@/components/EmployeeEditForm';
 import AddEmployeeForm from '@/components/AddEmployeeForm';
-import { Employee, User, accessConfigs } from '@/types/user';
+import { Employee, User, accessConfigs, hasPermission } from '@/types/user';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -17,7 +17,9 @@ import {
   TrendingUp,
   Upload,
   Download,
-  Plus
+  Plus,
+  Calendar,
+  Clock
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -28,7 +30,14 @@ const Dashboard = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
   const [isAddFormOpen, setAddFormOpen] = useState(false);
-  const isAdmin = user?.role === 'admin';
+  const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  
+  // Role-based permissions
+  const canCreateEmployees = hasPermission(user.role, 'employees', 'create');
+  const canEditEmployees = hasPermission(user.role, 'employees', 'update');
+  const canDeleteEmployees = hasPermission(user.role, 'employees', 'delete');
+  const canExportData = hasPermission(user.role, 'employees', 'export');
+  const canImportData = hasPermission(user.role, 'employees', 'import');
 
   // Fetch employees from API
   useEffect(() => {
@@ -81,7 +90,6 @@ const Dashboard = () => {
     });
   };
 
-  const [editingEmployee, setEditingEmployee] = React.useState<Employee | null>(null);
   const [isModalOpen, setIsModalOpen] = React.useState(false);
   const handleEmployeeEdit = (employee: Employee) => {
     console.log('Editing employee:', employee);
@@ -245,12 +253,12 @@ const Dashboard = () => {
               Welcome back, {user.name}!
             </h2>
             <p className="text-muted-foreground">
-              {isAdmin ? 'Manage employee data and system settings' : 'View employee information and reports'}
+              {canCreateEmployees ? 'Manage employee data and system settings' : 'View employee information and reports'}
             </p>
           </div>
 
           <div className="flex items-center space-x-2">
-            {isAdmin && (
+            {canCreateEmployees && (
               <Button onClick={handleAddEmployee} className="bg-admin hover:bg-admin-hover flex items-center">
                 <Plus className="mr-2 h-4 w-4" />
                 Add Employee
@@ -319,7 +327,7 @@ const Dashboard = () => {
           <TabsList className="flex w-full">
             <TabsTrigger className="flex-1 text-center" value="overview">Overview</TabsTrigger>
             <TabsTrigger className="flex-1 text-center" value="employees">Employees</TabsTrigger>
-            {isAdmin && <TabsTrigger className="flex-1 text-center" value="upload">Bulk Upload</TabsTrigger>}
+            {canImportData && <TabsTrigger className="flex-1 text-center" value="upload">Bulk Upload</TabsTrigger>}
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -392,7 +400,7 @@ const Dashboard = () => {
               <CardHeader>
                 <CardTitle>Employee Directory</CardTitle>
                 <CardDescription>
-                  {isAdmin
+                  {canEditEmployees
                     ? 'View, edit, and manage all employee records.'
                     : 'View employee directory.'
                   }
@@ -403,7 +411,7 @@ const Dashboard = () => {
                   employees={employees}
                   onEdit={handleEmployeeEdit}
                   onView={handleEmployeeView}
-                  onDelete={isAdmin ? handleEmployeeDelete : undefined}
+                  onDelete={canDeleteEmployees ? handleEmployeeDelete : undefined}
                 />
                 {editingEmployee && (
                   <EmployeeEditForm
@@ -417,7 +425,7 @@ const Dashboard = () => {
             </Card>
           </TabsContent>
 
-          {isAdmin && (
+          {canImportData && (
             <TabsContent value="upload" className="space-y-4">
               <ExcelUpload />
             </TabsContent>
