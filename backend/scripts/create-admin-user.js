@@ -24,8 +24,8 @@ async function createAdminUser() {
     
     const username = 'mti-ict';
     const password = 'T$1ngsh4n@24';
-    const role = 'admin';
-    const name = 'MTI ICT Admin';
+    const role = 'superadmin';
+    const name = 'MTI ICT Super Admin';
     const department = 'Human Resources';
     
     // Check if user already exists
