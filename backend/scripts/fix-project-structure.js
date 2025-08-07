@@ -103,15 +103,17 @@ async function fixProjectStructure() {
     
     const types = await getWorkPackageTypes(projectId);
     const milestoneType = types.find(t => t.name.toLowerCase().includes('milestone'));
-    const phaseType = types.find(t => t.name.toLowerCase().includes('phase') || t.name.toLowerCase().includes('epic'));
+    const taskType = types.find(t => t.name.toLowerCase().includes('task'));
     
     if (!milestoneType) {
       throw new Error('Milestone type not found');
     }
     
-    if (!phaseType) {
-      throw new Error('Phase/Epic type not found');
+    if (!taskType) {
+      throw new Error('Task type not found');
     }
+    
+    console.log(`📋 Using types: Milestone (ID: ${milestoneType.id}), Task (ID: ${taskType.id})`);
     
     const dates = calculateDates();
     
@@ -154,7 +156,7 @@ async function fixProjectStructure() {
       dueDate: dates.sprint4End,
       _links: {
         type: {
-          href: `${OPENPROJECT_URL}/api/v3/types/${phaseType.id}`
+          href: `${OPENPROJECT_URL}/api/v3/types/${taskType.id}`
         },
         project: {
           href: `${OPENPROJECT_URL}/api/v3/projects/${projectId}`
