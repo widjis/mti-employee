@@ -6,7 +6,7 @@ This directory contains comprehensive documentation for the enhancement of the M
 
 ## 📁 Document Structure
 
-### 📋 [PROJECT_ENHANCEMENT_PLAN.md](./PROJECT_ENHANCEMENT_PLAN.md)
+### 📋 [PROJECT_ENHANCEMENT_PLAN.md](./doc/PROJECT_ENHANCEMENT_PLAN.md)
 **The master enhancement plan document**
 - **Purpose**: Comprehensive overview of all planned enhancements
 - **Content**: 6-phase enhancement roadmap with priorities and timelines
@@ -17,7 +17,7 @@ This directory contains comprehensive documentation for the enhancement of the M
   - Success metrics and risk assessment
   - Resource requirements and timeline
 
-### 📝 [ENHANCEMENT_JOURNAL.md](./ENHANCEMENT_JOURNAL.md)
+### 📝 [ENHANCEMENT_JOURNAL.md](./doc/ENHANCEMENT_JOURNAL.md)
 **Daily progress tracking and decision log**
 - **Purpose**: Document day-to-day progress, decisions, and challenges
 - **Content**: Journal entries with templates for daily, weekly, and monthly reviews
@@ -28,7 +28,7 @@ This directory contains comprehensive documentation for the enhancement of the M
   - Weekly and monthly summary templates
   - Progress tracking and lessons learned
 
-### 🔧 [TECHNICAL_SPECIFICATIONS.md](./TECHNICAL_SPECIFICATIONS.md)
+### 🔧 [TECHNICAL_SPECIFICATIONS.md](./doc/TECHNICAL_SPECIFICATIONS.md)
 **Detailed technical implementation guide**
 - **Purpose**: Provide specific technical details for implementing enhancements
 - **Content**: Code examples, architecture diagrams, and implementation patterns
@@ -39,7 +39,7 @@ This directory contains comprehensive documentation for the enhancement of the M
   - Phase 3: Material UI migration (theme setup, component examples)
   - Code quality standards and best practices
 
-### 🗺️ [IMPLEMENTATION_ROADMAP.md](./IMPLEMENTATION_ROADMAP.md)
+### 🗺️ [IMPLEMENTATION_ROADMAP.md](./doc/IMPLEMENTATION_ROADMAP.md)
 **Detailed task breakdown and timeline**
 - **Purpose**: Granular implementation plan with specific tasks and dependencies
 - **Content**: Sprint-by-sprint breakdown with deliverables and acceptance criteria
