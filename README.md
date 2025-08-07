@@ -163,9 +163,9 @@ This directory contains comprehensive documentation for the enhancement of the M
 4. Start daily journal entries
 
 ### Emergency Contacts
-- **Technical Lead**: [Contact Information]
-- **Project Manager**: [Contact Information]
-- **DevOps Engineer**: [Contact Information]
+- **Technical Lead**: Contact your system administrator
+- **Project Manager**: Contact your system administrator
+- **DevOps Engineer**: Contact your system administrator
 
 ## 📚 Additional Resources
 

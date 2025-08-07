@@ -155,10 +155,10 @@ migratePasswords();
 #### .env Template
 ```env
 # Database Configuration
-DB_SERVER=10.60.10.47
-DB_NAME=MTIMasterEmployeeDB
-DB_USER=mti.hr
-DB_PASSWORD=Merdeka@2025!
+DB_SERVER=your_server_name
+DB_NAME=your_database_name
+DB_USER=your_username
+DB_PASSWORD=your_password
 DB_ENCRYPT=true
 DB_TRUST_SERVER_CERTIFICATE=true
 
