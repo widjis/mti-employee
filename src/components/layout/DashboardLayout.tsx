@@ -99,27 +99,29 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
             </div>
 
             <div className="flex items-center space-x-2 lg:space-x-4">
-              {/* User Info - Desktop */}
-              <div className="hidden lg:flex items-center space-x-3">
-                <div className="text-right">
-                  <p className="text-sm font-medium text-foreground">
-                    {user.name}
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    @{user.username}
-                  </p>
-                </div>
-                <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
-                  {user.name.charAt(0).toUpperCase()}
-                </div>
-              </div>
-              
               {/* User Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="relative h-8 w-8 rounded-full lg:hidden">
-                    <User className="h-4 w-4" />
-                  </Button>
+                  <div>
+                    {/* Desktop User Info - Clickable */}
+                    <Button variant="ghost" className="hidden lg:flex items-center space-x-3 h-auto p-2 hover:bg-accent">
+                      <div className="text-right">
+                        <p className="text-sm font-medium text-foreground">
+                          {user.name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          @{user.username}
+                        </p>
+                      </div>
+                      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+                        {user.name.charAt(0).toUpperCase()}
+                      </div>
+                    </Button>
+                    {/* Mobile User Menu Button */}
+                    <Button variant="ghost" size="sm" className="relative h-8 w-8 rounded-full lg:hidden">
+                      <User className="h-4 w-4" />
+                    </Button>
+                  </div>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent 
                   className="w-56 bg-popover border shadow-lg z-50" 
@@ -134,6 +136,14 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                       {roleConfig.label}
                     </Badge>
                   </div>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    className="cursor-pointer"
+                    onClick={() => window.location.href = '/profile'}
+                  >
+                    <User className="mr-2 h-4 w-4" />
+                    Profile
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     className="cursor-pointer text-destructive focus:text-destructive"

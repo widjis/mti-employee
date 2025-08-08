@@ -7,6 +7,12 @@ import { AuthProvider, useAuth } from "./context/AuthContext";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
+import EmployeeDirectory from "./pages/EmployeeDirectory";
+import ImportEmployees from "./pages/ImportEmployees";
+import EmployeeReports from "./pages/EmployeeReports";
+import UserManagement from "./pages/UserManagement";
+import RoleMatrix from "./pages/RoleMatrix";
+import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -37,6 +43,54 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <Dashboard />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/employees/directory" 
+        element={
+          <ProtectedRoute>
+            <EmployeeDirectory />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/employees/import" 
+        element={
+          <ProtectedRoute>
+            <ImportEmployees />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/reports/employee" 
+        element={
+          <ProtectedRoute>
+            <EmployeeReports />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/users/management" 
+        element={
+          <ProtectedRoute>
+            <UserManagement />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/users/role-matrix" 
+        element={
+          <ProtectedRoute>
+            <RoleMatrix />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/profile" 
+        element={
+          <ProtectedRoute>
+            <UserProfile />
           </ProtectedRoute>
         } 
       />

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import { hasPermission, NAVIGATION_ITEMS, NavigationItem } from '@/types/user';
 import { cn } from '@/lib/utils';
@@ -92,7 +93,8 @@ const roleBadgeConfig = {
 
 const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const { user } = useAuth();
-  const [expandedItems, setExpandedItems] = useState<string[]>(['dashboard']);
+  const navigate = useNavigate();
+  const [expandedItems, setExpandedItems] = useState<string[]>([]);
 
   if (!user) return null;
 
@@ -164,8 +166,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
           'hover:bg-accent hover:text-accent-foreground'
         )}
         onClick={() => {
-          // Handle navigation here
-          console.log(`Navigate to ${item.path}`);
+          if (item.path) {
+            navigate(item.path);
+            // Close sidebar on mobile after navigation
+            if (window.innerWidth < 1024) {
+              onToggle();
+            }
+          }
         }}
       >
         {IconComponent && <IconComponent className="mr-3 h-4 w-4" />}

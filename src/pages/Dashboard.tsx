@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import EmployeeTable from '@/components/EmployeeTable';
-import ExcelUpload from '@/components/ExcelUpload';
+
 import EmployeeEditForm from '@/components/EmployeeEditForm';
 import AddEmployeeForm from '@/components/AddEmployeeForm';
 import { Employee, User, accessConfigs, hasPermission } from '@/types/user';
@@ -327,7 +327,7 @@ const Dashboard = () => {
           <TabsList className="flex w-full">
             <TabsTrigger className="flex-1 text-center" value="overview">Overview</TabsTrigger>
             <TabsTrigger className="flex-1 text-center" value="employees">Employees</TabsTrigger>
-            {canImportData && <TabsTrigger className="flex-1 text-center" value="upload">Bulk Upload</TabsTrigger>}
+
           </TabsList>
 
           <TabsContent value="overview" className="space-y-4">
@@ -425,11 +425,7 @@ const Dashboard = () => {
             </Card>
           </TabsContent>
 
-          {canImportData && (
-            <TabsContent value="upload" className="space-y-4">
-              <ExcelUpload />
-            </TabsContent>
-          )}
+
         </Tabs>
       </div>
     </DashboardLayout>

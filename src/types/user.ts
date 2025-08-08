@@ -2,7 +2,7 @@ export interface User {
   id: string;
   username: string;
   name: string;
-  role: 'superadmin' | 'admin' | 'hr_general' | 'finance' | 'dep_rep';
+  role: 'superadmin' | 'admin' | 'hr_general' | 'finance' | 'dep_rep' | 'employee';
   department?: string;
 }
 
@@ -87,14 +87,14 @@ export const ROLE_PERMISSIONS: Record<User['role'], RolePermissions> = {
       system_config: false
     },
     users: {
-      create: false,
+      create: true,
       read: true,
-      update: false,
-      delete: false,
+      update: true,
+      delete: true,
       export: false,
       import: false,
       audit: true,
-      manage_users: false,
+      manage_users: true,
       system_config: false
     },
     reports: {
@@ -257,6 +257,52 @@ export const ROLE_PERMISSIONS: Record<User['role'], RolePermissions> = {
       manage_users: false,
       system_config: false
     }
+  },
+  employee: {
+    employees: {
+      create: false,
+      read: true,
+      update: false,
+      delete: false,
+      export: false,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    },
+    users: {
+      create: false,
+      read: false,
+      update: false,
+      delete: false,
+      export: false,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    },
+    reports: {
+      create: false,
+      read: false,
+      update: false,
+      delete: false,
+      export: false,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    },
+    system: {
+      create: false,
+      read: false,
+      update: false,
+      delete: false,
+      export: false,
+      import: false,
+      audit: false,
+      manage_users: false,
+      system_config: false
+    }
   }
 };
 
@@ -300,10 +346,10 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     },
     children: [
       {
-        id: 'employees-list',
-        label: 'Employee List',
-        icon: 'List',
-        path: '/employees/list',
+        id: 'employees-directory',
+        label: 'Employee Directory',
+        icon: 'Users',
+        path: '/employees/directory',
         requiredPermission: {
           module: 'employees',
           action: 'read'
@@ -375,12 +421,12 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
     children: [
       {
         id: 'users-list',
-        label: 'User List',
+        label: 'Manage Users',
         icon: 'Users',
-        path: '/users/list',
+        path: '/users/management',
         requiredPermission: {
           module: 'users',
-          action: 'read'
+          action: 'manage_users'
         }
       },
       {
@@ -388,6 +434,16 @@ export const NAVIGATION_ITEMS: NavigationItem[] = [
         label: 'Role Management',
         icon: 'Shield',
         path: '/users/roles',
+        requiredPermission: {
+          module: 'users',
+          action: 'manage_users'
+        }
+      },
+      {
+        id: 'role-matrix',
+        label: 'Role Matrix Configuration',
+        icon: 'Settings',
+        path: '/users/role-matrix',
         requiredPermission: {
           module: 'users',
           action: 'manage_users'
@@ -532,6 +588,10 @@ export const accessConfigs: Record<User['role'], AccessConfig> = {
   dep_rep: {
     canViewRow: (row, user) => row.department === user.department, // only view own department
     visibleFields: ['employee_id',	'name',	'gender',	'tax_status',	'religion',	'nationality',	'blood_type',	'phone_number',	'email',	'point_of_hire',	'schedule_type',	'first_join_date',	'join_date',	'employment_status',	'end_contract',	'years_in_service',	'department',	'section',	'job_title',	'position_grade',	'bpjs_tk',	'bpjs_kes',	'terminated_date'], // some limitations
+  },
+  employee: {
+    canViewRow: (row, user) => row.employee_id === user.username, // only view own record
+    visibleFields: ['employee_id', 'name', 'gender', 'phone_number', 'email', 'department', 'job_title', 'employment_status'], // very limited fields
   },
 };
 

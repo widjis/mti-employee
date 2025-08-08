@@ -166,10 +166,19 @@ class AuditService {
      * @param {string} tableName - Table name
      * @param {string} recordId - Record ID
      * @param {Object} options - Query options
+     * @param {Object} requestingUser - User making the request (for filtering)
      */
-    static async getAuditTrail(tableName, recordId, options = {}) {
+    static async getAuditTrail(tableName, recordId, options = {}, requestingUser = null) {
         try {
             const { limit = 50, offset = 0 } = options;
+            
+            // Build query with conditional filtering for superadmin activities
+            let whereClause = 'WHERE table_name = @tableName AND record_id = @recordId';
+            
+            // Hide superadmin activities from non-superadmin users
+            if (requestingUser && requestingUser.role !== 'superadmin') {
+                whereClause += ' AND (user_role IS NULL OR user_role != @superadminRole)';
+            }
             
             const query = `
                 SELECT 
@@ -184,18 +193,25 @@ class AuditService {
                     timestamp,
                     reason
                 FROM dbo.audit_trail 
-                WHERE table_name = @tableName AND record_id = @recordId
+                ${whereClause}
                 ORDER BY timestamp DESC
                 OFFSET @offset ROWS
                 FETCH NEXT @limit ROWS ONLY
             `;
 
-            const result = await executeQuery(query, {
+            const queryParams = {
                 tableName,
                 recordId: recordId.toString(),
                 limit,
                 offset
-            });
+            };
+            
+            // Add superadmin role parameter if filtering is needed
+            if (requestingUser && requestingUser.role !== 'superadmin') {
+                queryParams.superadminRole = 'superadmin';
+            }
+
+            const result = await executeQuery(query, queryParams);
 
             return result.recordset.map(record => ({
                 ...record,
@@ -205,6 +221,98 @@ class AuditService {
             }));
         } catch (error) {
             console.error('Failed to get audit trail:', error);
+            throw error;
+        }
+    }
+
+    /**
+     * Get general audit trail with optional filtering
+     * @param {Object} filters - Filter criteria
+     * @param {Object} requestingUser - User making the request (for filtering)
+     */
+    static async getGeneralAuditTrail(filters = {}, requestingUser = null) {
+        try {
+            const { 
+                limit = 50, 
+                offset = 0, 
+                tableName = null, 
+                operationType = null,
+                userId = null,
+                startDate = null,
+                endDate = null
+            } = filters;
+            
+            let whereConditions = [];
+            let queryParams = { limit, offset };
+            
+            // Add table name filter
+            if (tableName) {
+                whereConditions.push('table_name = @tableName');
+                queryParams.tableName = tableName;
+            }
+            
+            // Add operation type filter
+            if (operationType) {
+                whereConditions.push('operation_type = @operationType');
+                queryParams.operationType = operationType;
+            }
+            
+            // Add user ID filter
+            if (userId) {
+                whereConditions.push('user_id = @userId');
+                queryParams.userId = userId;
+            }
+            
+            // Add date range filters
+            if (startDate) {
+                whereConditions.push('timestamp >= @startDate');
+                queryParams.startDate = startDate;
+            }
+            
+            if (endDate) {
+                whereConditions.push('timestamp <= @endDate');
+                queryParams.endDate = endDate;
+            }
+            
+            // Hide superadmin activities from non-superadmin users
+            if (requestingUser && requestingUser.role !== 'superadmin') {
+                whereConditions.push('(user_role IS NULL OR user_role != @superadminRole)');
+                queryParams.superadminRole = 'superadmin';
+            }
+            
+            const whereClause = whereConditions.length > 0 ? 'WHERE ' + whereConditions.join(' AND ') : '';
+            
+            const query = `
+                SELECT 
+                    audit_id,
+                    table_name,
+                    record_id,
+                    operation_type,
+                    old_values,
+                    new_values,
+                    changed_fields,
+                    user_id,
+                    user_role,
+                    ip_address,
+                    timestamp,
+                    reason
+                FROM dbo.audit_trail 
+                ${whereClause}
+                ORDER BY timestamp DESC
+                OFFSET @offset ROWS
+                FETCH NEXT @limit ROWS ONLY
+            `;
+
+            const result = await executeQuery(query, queryParams);
+
+            return result.recordset.map(record => ({
+                ...record,
+                old_values: record.old_values ? JSON.parse(record.old_values) : null,
+                new_values: record.new_values ? JSON.parse(record.new_values) : null,
+                changed_fields: record.changed_fields ? record.changed_fields.split(',') : null
+            }));
+        } catch (error) {
+            console.error('Failed to get general audit trail:', error);
             throw error;
         }
     }

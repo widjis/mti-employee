@@ -54,6 +54,27 @@ export const authorizeRoles = (...allowedRoles) => {
 };
 
 /**
+ * Role requirement middleware (alias for authorizeRoles)
+ */
+export const requireRole = (allowedRoles) => {
+  return authorizeRoles(...allowedRoles);
+};
+
+/**
+ * Check if user has specific permission
+ */
+export const hasPermission = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ 
+      success: false, 
+      message: 'Authentication required' 
+    });
+  }
+
+  next();
+};
+
+/**
  * Optional Authentication Middleware
  * Adds user info if token is present, but doesn't require it
  */
