@@ -10,15 +10,35 @@ class User {
    * Create a new user
    */
   static async create(userData) {
-    const { username, name, password, role = 'employee', department } = userData;
+    const { 
+      username, 
+      name, 
+      password, 
+      role = 'employee', 
+      department,
+      auth_type = 'local',
+      domain_username = null,
+      last_domain_sync = null
+    } = userData;
     
-    // Hash password before storing
-    const hashedPassword = await bcrypt.hash(password, config.security.bcryptSaltRounds);
+    // Hash password before storing (only for local users)
+    let hashedPassword = null;
+    if (password && auth_type === 'local') {
+      hashedPassword = await bcrypt.hash(password, config.security.bcryptSaltRounds);
+    }
     
     const query = `
-      INSERT INTO dbo.login (username, name, password, Role, department, created_at, updated_at)
+      INSERT INTO dbo.login (
+        username, name, password, Role, department, 
+        auth_type, domain_username, last_domain_sync,
+        created_at, updated_at
+      )
       OUTPUT INSERTED.*
-      VALUES (@username, @name, @password, @role, @department, GETDATE(), GETDATE())
+      VALUES (
+        @username, @name, @password, @role, @department,
+        @auth_type, @domain_username, @last_domain_sync,
+        GETDATE(), GETDATE()
+      )
     `;
     
     const result = await executeQuery(query, {
@@ -26,7 +46,10 @@ class User {
       name,
       password: hashedPassword,
       role,
-      department
+      department,
+      auth_type,
+      domain_username,
+      last_domain_sync
     });
     
     return result.recordset[0];
@@ -45,8 +68,20 @@ class User {
    * Find user by ID
    */
   static async findById(id) {
-    const query = 'SELECT * FROM dbo.login WHERE id = @id';
+    const query = 'SELECT * FROM dbo.login WHERE Id = @id';
     const result = await executeQuery(query, { id });
+    return result.recordset[0] || null;
+  }
+
+  /**
+   * Find user by domain username
+   */
+  static async findByDomainUsername(domainUsername) {
+    const query = 'SELECT * FROM dbo.login WHERE domain_username = @domainUsername AND auth_type = @auth_type';
+    const result = await executeQuery(query, { 
+      domainUsername, 
+      auth_type: 'domain' 
+    });
     return result.recordset[0] || null;
   }
   
@@ -150,7 +185,7 @@ class User {
   static async updateLoginAttempts(username, attempts, lockedUntil = null) {
     const query = `
       UPDATE dbo.login 
-      SET loginAttempts = @attempts, lockedUntil = @lockedUntil, updatedAt = GETDATE()
+      SET login_count = @attempts, locked_until = @lockedUntil, updated_at = GETDATE()
       WHERE username = @username
     `;
     
@@ -163,7 +198,7 @@ class User {
   static async updateLastLogin(username) {
     const query = `
       UPDATE dbo.login 
-      SET lastLogin = GETDATE(), loginAttempts = 0, lockedUntil = NULL, updatedAt = GETDATE()
+      SET last_login = GETDATE(), login_count = login_count + 1, account_locked = 0, locked_until = NULL, updated_at = GETDATE()
       WHERE username = @username
     `;
     
@@ -174,7 +209,7 @@ class User {
    * Check if user account is locked
    */
   static isAccountLocked(user) {
-    return !!(user.lockedUntil && new Date(user.lockedUntil) > new Date());
+    return !!(user.locked_until && new Date(user.locked_until) > new Date());
   }
   
   /**

@@ -8,6 +8,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import Login from "./pages/Login";
 import Dashboard from "./pages/Dashboard";
 import EmployeeDirectory from "./pages/EmployeeDirectory";
+import AddEmployee from "./pages/AddEmployee";
 import ImportEmployees from "./pages/ImportEmployees";
 import EmployeeReports from "./pages/EmployeeReports";
 import UserManagement from "./pages/UserManagement";
@@ -51,6 +52,14 @@ const AppRoutes = () => {
         element={
           <ProtectedRoute>
             <EmployeeDirectory />
+          </ProtectedRoute>
+        } 
+      />
+      <Route 
+        path="/employees/add" 
+        element={
+          <ProtectedRoute>
+            <AddEmployee />
           </ProtectedRoute>
         } 
       />

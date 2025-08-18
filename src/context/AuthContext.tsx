@@ -4,7 +4,7 @@ import { User } from '@/types/user';
 interface AuthContextType {
   user: User | null;
   token: string | null;
-  login: (username: string, password: string) => Promise<boolean>;
+  login: (username: string, password: string, authType?: 'local' | 'domain') => Promise<boolean>;
   logout: () => void;
   isLoading: boolean;
 }
@@ -35,14 +35,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
-  const login = async (username: string, password: string): Promise<boolean> => {
+  const login = async (username: string, password: string, authType: 'local' | 'domain' = 'local'): Promise<boolean> => {
     setIsLoading(true);
 
     try {
       const res = await fetch('/api/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify({ username, password, authType }),
       });
 
       if (!res.ok) {

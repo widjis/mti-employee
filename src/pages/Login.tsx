@@ -6,12 +6,13 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { Building, Lock, User } from 'lucide-react';
+import { Building, Lock, User, Shield } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
 const Login = () => {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [authType, setAuthType] = useState<'local' | 'domain'>('local');
   const [error, setError] = useState('');
   const { login, isLoading } = useAuth();
   const navigate = useNavigate();
@@ -26,7 +27,7 @@ const Login = () => {
       return;
     }
 
-    const success = await login(username, password);
+    const success = await login(username, password, authType);
     
     if (success) {
       toast({
@@ -60,19 +61,52 @@ const Login = () => {
         <CardContent className="space-y-4">
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="username">Username</Label>
+              <Label htmlFor="authType">Authentication Type</Label>
+              <div className="flex space-x-2">
+                <Button
+                  type="button"
+                  variant={authType === 'local' ? 'default' : 'outline'}
+                  onClick={() => setAuthType('local')}
+                  className="flex-1"
+                  disabled={isLoading}
+                >
+                  <Shield className="w-4 h-4 mr-2" />
+                  Local Account
+                </Button>
+                <Button
+                  type="button"
+                  variant={authType === 'domain' ? 'default' : 'outline'}
+                  onClick={() => setAuthType('domain')}
+                  className="flex-1"
+                  disabled={isLoading}
+                >
+                  <Building className="w-4 h-4 mr-2" />
+                  Domain Account
+                </Button>
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="username">
+                {authType === 'domain' ? 'Domain Username' : 'Username'}
+              </Label>
               <div className="relative">
                 <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Enter your username"
+                  placeholder={authType === 'domain' ? 'Enter your domain username' : 'Enter your username'}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="pl-10"
                   disabled={isLoading}
                 />
               </div>
+              {authType === 'domain' && (
+                <p className="text-sm text-muted-foreground">
+                  Use your Active Directory username (without domain)
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">
