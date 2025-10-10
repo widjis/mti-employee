@@ -1312,3 +1312,9 @@ This implementation provides a complete hybrid authentication solution, allowing
 - **Error Handling**: ✅ Proper error responses\n\n[2025-10-10 10:59:13 +08:00] Deployment prep: Pushed auth fix and cleanup script. Next: sync to production Docker and clear local password for domain users (widji.santoso).
 
 2025-10-10 - Local troubleshooting: Cleared local password for domain user widji.santoso (set to empty string due to NOT NULL); Verified in DB; Retested login -> still 401 due to LDAP 52e (invalid credentials). Next: verify LDAP_BIND_DN/PASSWORD in .env and rerun test-ldap-connection.js.
+
+### 2025-10-10 13:16:06 +08:00 - Local Auth Test
+- Tested username 'widji.santoso' with provided password (redacted).
+- Result: 401 Unauthorized; LDAP AcceptSecurityContext error data 52e; local password cleared; domain-only.
+- Next: Verify LDAP_BIND_DN/LDAP_BIND_PASSWORD in .env and confirm LDAPS vs LDAP; retest login.
+
