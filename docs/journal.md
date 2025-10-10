@@ -1309,4 +1309,4 @@ This implementation provides a complete hybrid authentication solution, allowing
 - **Login Functionality**: ✅ Restored and working
 - **Database Queries**: ✅ All column names aligned with schema
 - **Authentication Flow**: ✅ Both local and LDAP ready
-- **Error Handling**: ✅ Proper error responses
+- **Error Handling**: ✅ Proper error responses\n\n[2025-10-10 10:59:13 +08:00] Deployment prep: Pushed auth fix and cleanup script. Next: sync to production Docker and clear local password for domain users (widji.santoso).
