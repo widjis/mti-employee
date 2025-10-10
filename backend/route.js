@@ -51,13 +51,13 @@ router.post('/login',
         console.log(`Domain authentication failed for user: ${username} - ${ldapResult.error}`);
         
         // If domain auth fails and user exists locally, try local auth as fallback
-        if (localUser && localUser.password) {
-          console.log(`Falling back to local authentication for user: ${username}`);
+        if (localUser && localUser.password && localUser.auth_type === 'local') {
+          console.log(`Falling back to local authentication for user configured as local: ${username}`);
           authMethod = 'local';
         } else {
           return res.status(401).json({ 
             success: false, 
-            message: 'Domain authentication failed',
+            message: 'Domain authentication failed for domain user. Local fallback disabled.',
             details: ldapResult.error
           });
         }
@@ -69,6 +69,14 @@ router.post('/login',
       
       if (!localUser) {
         return res.status(401).json({ success: false, message: 'Invalid credentials' });
+      }
+
+      // Explicitly block local authentication for domain-configured users
+      if (localUser.auth_type === 'domain') {
+        return res.status(401).json({
+          success: false,
+          message: 'Local authentication disabled for domain users. Please use your Active Directory password.'
+        });
       }
 
       if (!localUser.password) {

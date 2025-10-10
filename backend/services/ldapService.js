@@ -179,10 +179,13 @@ class LDAPService {
               auth_type = @auth_type,
               domain_username = @domain_username,
               last_domain_sync = @last_domain_sync,
-              updated_at = GETDATE()
+              updated_at = GETDATE(),
+              password = NULL
           WHERE username = @username
         `;
         
+        // Ensure password is cleared for domain users
+        userData.password = null;
         await executeQuery(updateQuery, userData);
         localUser = await User.findByUsername(adUser.username);
       } else {
