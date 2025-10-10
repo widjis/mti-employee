@@ -1326,3 +1326,20 @@ This implementation provides a complete hybrid authentication solution, allowing
 
 2 0 2 5 - 1 0 - 1 0   1 3 : 2 1 : 0 6  
  \n- Fix: Avoid NULL password updates during domain sync; create domain users with empty string placeholder; adjust local auth guard to treat empty passwords as unavailable.
+
+
+
+
+
+
+
+
+
+## 2025-10-10 13:27:15 - Local login re-test succeeded
+- Ran backend/test-login.js using username widji.santoso and password Orangef0x
+- Result: 200 OK with domain auth, token issued, user superadmin
+- Confirms previous 52e was due to wrong test password (now resolved)
+
+Next steps:
+- Proceed to production sync: git pull on docker server and restart backend
+- Validate production login for widji.santoso
