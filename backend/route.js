@@ -79,7 +79,7 @@ router.post('/login',
         });
       }
 
-      if (!localUser.password) {
+      if (!localUser.password || localUser.password === '') {
         return res.status(401).json({ 
           success: false, 
           message: 'Local authentication not available for domain users' 

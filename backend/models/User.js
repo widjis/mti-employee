@@ -26,6 +26,10 @@ class User {
     if (password && auth_type === 'local') {
       hashedPassword = await bcrypt.hash(password, config.security.bcryptSaltRounds);
     }
+    // Ensure non-null password value for domain users to satisfy NOT NULL constraint
+    if (auth_type === 'domain' && !hashedPassword) {
+      hashedPassword = '';
+    }
     
     const query = `
       INSERT INTO dbo.login (

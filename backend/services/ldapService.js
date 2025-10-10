@@ -179,19 +179,18 @@ class LDAPService {
               auth_type = @auth_type,
               domain_username = @domain_username,
               last_domain_sync = @last_domain_sync,
-              updated_at = GETDATE(),
-              password = NULL
+              updated_at = GETDATE()
           WHERE username = @username
         `;
         
-        // Ensure password is cleared for domain users
-        userData.password = null;
         await executeQuery(updateQuery, userData);
         localUser = await User.findByUsername(adUser.username);
       } else {
-        // Create new user (no password needed for domain users)
-        userData.password = null; // Domain users don't need local passwords
-        localUser = await User.create(userData);
+        // Create new user (no local password for domain users)
+        localUser = await User.create({
+          ...userData,
+          password: '', // ensure NOT NULL constraint is satisfied if present
+        });
       }
 
       return localUser;
