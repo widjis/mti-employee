@@ -10,9 +10,11 @@ async function clearDomainPassword(user) {
   try {
     console.log(`\n🔧 Clearing local password for domain user: ${user}`);
 
+    // NOTE: DB schema for dbo.login.password is NOT NULL in this environment.
+    // To "clear" local password for domain users, set it to empty string ('') and update updated_at.
     const updateQuery = `
       UPDATE dbo.login
-      SET password = NULL, updated_at = GETDATE()
+      SET password = '', updated_at = GETDATE()
       WHERE username = @username AND (auth_type = 'domain' OR auth_type = 'DOMAIN')
     `;
 
@@ -20,7 +22,7 @@ async function clearDomainPassword(user) {
 
     const checkQuery = `
       SELECT username, auth_type,
-             CASE WHEN password IS NULL THEN 'No' ELSE 'Yes' END AS has_password
+             CASE WHEN password IS NULL OR password = '' THEN 'No' ELSE 'Yes' END AS has_password
       FROM dbo.login WHERE username = @username
     `;
     const result = await executeQuery(checkQuery, { username: user });
@@ -29,7 +31,7 @@ async function clearDomainPassword(user) {
       const u = result.recordset[0];
       console.log(`✅ User: ${u.username}, auth_type: ${u.auth_type}, Has Password: ${u.has_password}`);
       if (u.has_password === 'No') {
-        console.log('✅ Local password cleared successfully. Domain login will not fallback to local.');
+        console.log('✅ Local password cleared (empty string). Domain login will not fallback to local.');
       } else {
         console.log('⚠️ Local password still present. Please re-run or check DB permissions.');
       }

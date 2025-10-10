@@ -18,7 +18,7 @@ async function checkUserInDatabase() {
                 domain_username,
                 last_domain_sync,
                 created_at,
-                CASE WHEN password IS NULL THEN 'No' ELSE 'Yes' END as has_password
+                CASE WHEN password IS NULL OR password = '' THEN 'No' ELSE 'Yes' END as has_password
             FROM dbo.login 
             WHERE username = @username
         `;
