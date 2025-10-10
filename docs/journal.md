@@ -1318,3 +1318,11 @@ This implementation provides a complete hybrid authentication solution, allowing
 - Result: 401 Unauthorized; LDAP AcceptSecurityContext error data 52e; local password cleared; domain-only.
 - Next: Verify LDAP_BIND_DN/LDAP_BIND_PASSWORD in .env and confirm LDAPS vs LDAP; retest login.
 
+
+### 2025-10-10 13:18:02 +08:00 - Fix .env LDAP_BIND_PASSWORD quoting
+- Issue: '#' char caused truncation in dotenv parsing (treated as comment).
+- Action: Quoted LDAP_BIND_PASSWORD in .env to include '#'.
+- Next: Re-run LDAP connectivity and auth tests.
+
+2 0 2 5 - 1 0 - 1 0   1 3 : 2 1 : 0 6  
+ \n- Fix: Avoid NULL password updates during domain sync; create domain users with empty string placeholder; adjust local auth guard to treat empty passwords as unavailable.
