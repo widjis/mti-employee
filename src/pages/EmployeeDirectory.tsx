@@ -152,10 +152,11 @@ const EmployeeDirectory = () => {
 
     try {
       await deleteEmployee(employeeId); // API call to delete on server
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       toast({
         title: "Delete Failed",
-        description: error.message || "Failed to delete employee. Please try again.",
+        description: message || "Failed to delete employee. Please try again.",
         variant: "destructive",
       });
       // Rollback UI state to re-add employee
@@ -176,7 +177,7 @@ const EmployeeDirectory = () => {
     });
   };
 
-  const convertToCSV = (data: any[]) => {
+  const convertToCSV = (data: Record<string, unknown>[]) => {
     if (!data.length) return '';
 
     const headers = Object.keys(data[0]);
@@ -184,7 +185,8 @@ const EmployeeDirectory = () => {
       headers.join(','),
       ...data.map(row =>
         headers.map(fieldName => {
-          const escaped = ('' + row[fieldName]).replace(/"/g, '""');
+          const value = row[fieldName];
+          const escaped = String(value).replace(/"/g, '""');
           return `"${escaped}"`;
         }).join(',')
       )

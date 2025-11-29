@@ -4,7 +4,6 @@ import DashboardLayout from '@/components/layout/DashboardLayout';
 import EmployeeTable from '@/components/EmployeeTable';
 
 import EmployeeEditForm from '@/components/EmployeeEditForm';
-import AddEmployeeForm from '@/components/AddEmployeeForm';
 import { Employee, User, accessConfigs, hasPermission } from '@/types/user';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +16,6 @@ import {
   TrendingUp,
   Upload,
   Download,
-  Plus,
   Calendar,
   Clock
 } from 'lucide-react';
@@ -29,7 +27,6 @@ const Dashboard = () => {
   const [employees, setEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('overview');
-  const [isAddFormOpen, setAddFormOpen] = useState(false);
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
   
   // Role-based permissions
@@ -139,10 +136,11 @@ const Dashboard = () => {
 
     try {
       await deleteEmployee(employeeId); // API call to delete on server
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
       toast({
         title: "Delete Failed",
-        description: error.message || "Failed to delete employee. Please try again.",
+        description: message || "Failed to delete employee. Please try again.",
         variant: "destructive",
       });
       // Rollback UI state to re-add employee
@@ -150,20 +148,9 @@ const Dashboard = () => {
     }
   };
 
-  const handleAddEmployee = () => {
-    setAddFormOpen(true);
-  };
+  // Removed dashboard Add Employee flow to centralize under Employee Management
 
-  const handleAddEmployeeSave = (newEmployee: Employee) => {
-    setEmployees(prev => [...prev, newEmployee]);
-    setAddFormOpen(false);
-    toast({
-      title: "Employee Added",
-      description: `${newEmployee.name} has been added successfully.`,
-    });
-  };
-
-  const convertToCSV = (data: any[]) => {
+  const convertToCSV = (data: Record<string, unknown>[]) => {
     if (!data.length) return '';
 
     const headers = Object.keys(data[0]);
@@ -171,7 +158,8 @@ const Dashboard = () => {
       headers.join(','),
       ...data.map(row =>
         headers.map(fieldName => {
-          const escaped = ('' + row[fieldName]).replace(/"/g, '""');
+          const value = row[fieldName];
+          const escaped = String(value).replace(/"/g, '""');
           return `"${escaped}"`;
         }).join(',')
       )
@@ -258,25 +246,11 @@ const Dashboard = () => {
           </div>
 
           <div className="flex items-center space-x-2">
-            {canCreateEmployees && (
-              <Button onClick={handleAddEmployee} className="bg-admin hover:bg-admin-hover flex items-center">
-                <Plus className="mr-2 h-4 w-4" />
-                Add Employee
-              </Button>
-            )}
-
             <Button variant="outline" onClick={handleExportData} className="flex items-center">
               <Download className="mr-2 h-4 w-4" />
               Export Data
             </Button>
           </div>
-
-          {isAddFormOpen && (
-            <AddEmployeeForm
-              onAdd={handleAddEmployeeSave}
-              onClose={() => setAddFormOpen(false)}
-            />
-          )}
         </div>
 
         {/* Stats Cards */}

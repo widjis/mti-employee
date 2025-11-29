@@ -41,6 +41,92 @@ Direct URL: `http://localhost:5173/employees/add`
 
 ---
 
+## 2025-11-29 14:12:03 +08:00
+
+### Guidance: Add Superadmin from Domain User via AD Group
+
+**Context**: User asked how to make a domain user a superadmin. Our backend assigns roles at login by mapping the user's AD `memberOf` groups to app roles in `backend/services/ldapService.js`.
+
+**Recommended Approach (Persistent)**:
+- Add the user to the AD security group configured as `LDAP_GROUP_SUPERADMIN` in `.env`.
+- Current value: `CN=MTI_SEC_Superadmin,CN=Users,DC=mbma,DC=com`.
+- On next successful domain login, `ldapService.syncDomainUser()` will set `role = 'superadmin'` automatically.
+
+**How to Add in Active Directory**:
+- GUI: Open "Active Directory Users and Computers" → find the group `MTI_SEC_Superadmin` → Properties → Members → Add → enter the user (e.g., `mbma\\widji.santoso`).
+- PowerShell (example): `Add-ADGroupMember -Identity "MTI_SEC_Superadmin" -Members "mbma\\widji.santoso"`.
+- Verify DN: `Get-ADGroup -Identity MTI_SEC_Superadmin | Select DistinguishedName` should match `.env`.
+
+**Verification Steps**:
+- Test login: `node backend/scripts/test-auth-detailed.js widji.santoso <AD_PASSWORD>` and confirm `user.role` in the JSON is `superadmin`.
+- Or call API: `POST /api/login` with domain credentials; check `role` in response.
+- Optional DB check: `node backend/check-user-db.js` to see local record updated to `Role='superadmin'`.
+
+**Alternative (Temporary Override, Not Persistent)**:
+- Use `backend/create-domain-user.js` to set a user's `Role` to `superadmin` locally.
+- Caveat: On next domain login, `syncDomainUser()` will recompute `Role` from AD groups and may overwrite to a lower role if not in superadmin group.
+
+**Notes**:
+- Group-to-role mapping lives in `.env` (`LDAP_GROUP_*`) and is used by `ldapService.mapGroupsToRole()`.
+- If role does not reflect expected privilege, recheck AD group membership and the exact DN in `.env`.
+
+**Status**: Guidance provided; no code changes applied.
+
+---
+
+## Saturday, November 29, 2025 2:33:59 PM
+
+### UI Cleanup: Remove Duplicate "Add Employee" from Dashboard
+
+**Context**: There were two entry points to add employees:
+- Dashboard header had an inline "Add Employee" button opening a modal
+- Employee Management → "Add Employee" navigates to a dedicated page (`/employees/add`)
+
+**Decision**: Centralize the add flow under Employee Management for consistency, RBAC clarity, and single source of truth.
+
+**Changes Made**:
+- `src/pages/Dashboard.tsx`: Removed the header "Add Employee" button and the modal (`AddEmployeeForm`) including its state and handlers.
+- Navigation remains: Sidebar menu → Employee Management → Add Employee (`/employees/add`).
+
+**Verification**:
+- Type check: `npx tsc --noEmit` passed (exit code 0).
+- Dev server: `npm run dev` started; preview at `http://localhost:5174/`.
+- Manual check confirms Dashboard no longer shows the duplicate button; add flow accessible via menu.
+
+**Rationale**:
+- Avoid duplicate entry points and ensure role checks remain consistent via the dedicated route.
+- Improves UX discoverability by keeping creation actions within the Employee module.
+
+**Status**: ✅ Completed and verified.
+
+---
+
+## Saturday, November 29, 2025 2:42:18 PM
+
+### Lint Fix: Remove explicit `any` in Dashboard and Directory
+
+**Issue**:
+- ESLint flagged `@typescript-eslint/no-explicit-any` on catch blocks and CSV helpers.
+- Reported at `src/pages/Dashboard.tsx#L139` and also present in `EmployeeDirectory.tsx`.
+
+**Changes Made**:
+- `src/pages/Dashboard.tsx`:
+  - `catch (error: any)` → `catch (error: unknown)` and safely extracted message using `error instanceof Error ? error.message : String(error)`.
+  - `convertToCSV(data: any[])` → `convertToCSV(data: Record<string, unknown>[])` and used `String(value)` for robust escaping.
+- `src/pages/EmployeeDirectory.tsx`:
+  - `catch (error: any)` → `catch (error: unknown)` with safe message extraction.
+  - `convertToCSV(data: any[])` → `Record<string, unknown>[]` and used `String(value)`.
+
+**Verification**:
+- Type check: `npx tsc --noEmit` passed (exit code 0).
+- ESLint: `npm run lint` still reports unrelated errors/warnings (e.g., `RoleMatrix.tsx` unexpected any, `textarea.tsx` empty interface, `tailwind.config.ts` require import). These are outside the scope of this targeted fix.
+
+**Notes**:
+- Remaining lint issues can be addressed in a focused PR. The specific `no-explicit-any` in Dashboard is resolved.
+
+**Status**: ✅ Completed for targeted files.
+
+
 ## 2025-08-08 17:02:49 WIB
 
 ### Department Mapping Analysis from Active Directory
@@ -944,3 +1030,8 @@ Proposed actions: set LDAP_BIND_DN in .env; remove LDAP_BIND_CN; keep TLS reject
 [2025-11-29 13:51:57] Git ignore check: backend/scripts is NOT excluded by .gitignore.
 - Current .gitignore ignores environment files and build outputs, but not backend/scripts.
 - Awaiting approval to add 'backend/scripts/' to .gitignore and perform 'git rm -r --cached backend/scripts' to stop tracking.
+
+[2025-11-29 14:09:19] Git ignore update: backend/scripts excluded and untracked from Git index.
+- Updated .gitignore to include 'backend/scripts/'.
+- Ran 'git rm -r --cached backend/scripts' to stop tracking (local files preserved).
+Next steps: commit and push changes to apply on remote (GitHub).
