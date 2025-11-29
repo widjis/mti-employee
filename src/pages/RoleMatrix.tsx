@@ -6,7 +6,7 @@ import { Switch } from '@/components/ui/switch';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
-import { ROLE_PERMISSIONS, type User, type RolePermissions } from '@/types/user';
+import { ROLE_PERMISSIONS, type User, type RolePermissions, type Permission } from '@/types/user';
 import { Shield, Users, FileText, Settings, Save, RotateCcw } from 'lucide-react';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 
@@ -28,14 +28,14 @@ const RoleMatrix: React.FC = () => {
     { key: 'update', label: 'Update' },
     { key: 'delete', label: 'Delete' },
     { key: 'manage_users', label: 'Manage Users' },
-  ] as const;
+  ] satisfies ReadonlyArray<{ key: keyof Permission; label: string }>;
 
   const roles = Object.keys(permissions) as User['role'][];
 
   const handlePermissionChange = (
     role: User['role'],
     module: keyof RolePermissions,
-    action: string,
+    action: keyof Permission,
     value: boolean
   ) => {
     setPermissions(prev => ({
@@ -178,10 +178,9 @@ const RoleMatrix: React.FC = () => {
                             </Badge>
                           </TableCell>
                           {actions.map((action) => {
-                            const modulePerms = permissions[role][module.key as keyof RolePermissions];
-                            const hasPermission = modulePerms && typeof modulePerms === 'object' 
-                              ? (modulePerms as any)[action.key] === true
-                              : false;
+                            const moduleKey = module.key as keyof RolePermissions;
+                            const modulePerms: Permission = permissions[role][moduleKey];
+                            const hasPermission = modulePerms[action.key] === true;
                             
                             return (
                               <TableCell key={action.key} className="text-center">

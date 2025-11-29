@@ -127,6 +127,32 @@ Direct URL: `http://localhost:5173/employees/add`
 **Status**: ✅ Completed for targeted files.
 
 
+## Saturday, November 29, 2025 3:32:52 PM
+
+### Lint Fixes: RoleMatrix typing, UI props aliases, Tailwind ESM
+
+**Issues Addressed**:
+- `src/pages/RoleMatrix.tsx`: `@typescript-eslint/no-explicit-any` from `(modulePerms as any)[action.key]`.
+- `src/components/ui/textarea.tsx`: `@typescript-eslint/no-empty-object-type` from empty interface.
+- `src/components/ui/command.tsx`: same empty interface pattern.
+- `tailwind.config.ts`: `@typescript-eslint/no-require-imports` using `require("tailwindcss-animate")`.
+
+**Changes Made**:
+- RoleMatrix: Typed `actions` as `keyof Permission` with `satisfies`, updated `handlePermissionChange` signature, and indexed `modulePerms[action.key]` without `any` casts.
+- Textarea: Converted `interface TextareaProps extends React.TextareaHTMLAttributes<HTMLTextAreaElement> {}` to `type TextareaProps = React.TextareaHTMLAttributes<HTMLTextAreaElement>;`.
+- Command: Converted `interface CommandDialogProps extends DialogProps {}` to `type CommandDialogProps = DialogProps;`.
+- Tailwind: Switched to ESM plugin import `import tailwindcssAnimate from 'tailwindcss-animate'` and used `plugins: [tailwindcssAnimate]`.
+
+**Verification**:
+- Type check: `npx tsc --noEmit` passed (exit code 0).
+- ESLint: `npm run lint` now reports fewer issues. Remaining items are unrelated warnings (`react-refresh/only-export-components`) and other errors outside this targeted scope.
+
+**Notes**:
+- The `react-refresh/only-export-components` warnings suggest moving shared constants out of component files; can be addressed separately.
+
+**Status**: ✅ Completed targeted lint fixes and verification.
+
+
 ## 2025-08-08 17:02:49 WIB
 
 ### Department Mapping Analysis from Active Directory
