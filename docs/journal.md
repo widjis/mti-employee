@@ -888,458 +888,59 @@ This implementation provides a complete hybrid authentication solution, allowing
   - Verify AD .env configurations (LDAP_URL, LDAP_BASE_DN, LDAP_BIND_DN, LDAP_BIND_PASSWORD, LDAP_USER_SEARCH_BASE, LDAP_USER_SEARCH_FILTER).
 - Environment: Development (localhost) — change will be synced to production following your process.
 
-```
-```
-
-### 2025-10-10 10:41:12 +08:00
-
-### Local Dev: Frontend and Backend Servers Started
-
-- Frontend: Vite dev server started successfully
-  - Local URL: http://localhost:5173/
-  - Network URL: http://10.60.20.126:5173/
-- Backend: Nodemon started `node app.js`
-  - Server running on port 8080
-  - Environment: development
-  - CORS Origin: http://localhost:5173
-  - Database: Connected to MSSQL MTIMasterEmployeeDB on 10.60.10.47:1433
-
-### Notes
-- Ran `npm run install:all` to install dependencies for root and backend
-- Ran `npm run dev:full` to start both frontend and backend concurrently
-- Verified backend logs show successful DB init and server start
-
-### Next Steps
-- Test frontend login and basic navigation
-- Exercise key API endpoints (auth, users, employees)
-- Prepare Docker production run steps per user's environment
-
-**Status**: ✅ Completed - TypeScript compilation successful, security enhancement deployed
-
----
-
-## 2025-08-08 - LDAP/Active Directory Authentication Integration
-
-### Summary
-Implemented comprehensive LDAP/Active Directory authentication to enable SSO for existing AD users, providing seamless authentication between local and domain accounts.
-
-### Changes Made
-
-#### 1. Database Schema Updates
-- **Migration Script** (`backend/migrations/003_add_auth_type_column.sql`): Added authentication type support
-- **New Columns in `dbo.login` table**:
-  - `auth_type`: NVARCHAR(20) with CHECK constraint ('local', 'domain'), defaults to 'local'
-  - `domain_username`: NVARCHAR(100) for storing AD username
-  - `last_domain_sync`: DATETIME2(3) for tracking last AD synchronization
-- **Database Index**: Created `IX_login_domain_username` for efficient domain user lookups
-- **Migration Execution**: Successfully ran migration using Node.js script to handle SQL Server compatibility
-
-#### 2. Backend LDAP Service (`backend/services/ldapService.js`)
-- **LDAP Authentication**: Connects to Active Directory using ldapts library
-- **User Authentication**: Validates domain credentials against AD
-- **Group Mapping**: Maps AD groups to application roles (Superadmin, Admin, HR General, Finance, Department Rep)
-- **User Synchronization**: Syncs domain users with local database
-- **Connection Testing**: Provides LDAP connection validation
-- **Security Features**: Configurable TLS settings and connection timeouts
-
-#### 3. Enhanced User Model (`backend/models/User.js`)
-- **Updated `create` method**: Handles both local and domain users
-- **Conditional Password Hashing**: Only hashes passwords for local users (domain users use AD authentication)
-- **New Method `findByDomainUsername`**: Retrieves users by domain username and auth_type
-- **Enhanced `sanitizeUser`**: Includes new authentication fields in responses
-
-#### 4. Updated Login Route (`backend/route.js`)
-- **Dual Authentication Logic**: Supports both local and domain authentication
-- **Smart Authentication**: Attempts LDAP first for domain users, falls back to local if needed
-- **JWT Enhancement**: Includes `authType` in JWT tokens for session management
-- **Error Handling**: Comprehensive error handling for both authentication methods
-
-#### 5. Frontend Authentication Updates
-- **Login Page** (`src/pages/Login.tsx`):
-  - Added authentication type selector (Local Account / Domain Account)
-  - Dynamic UI based on selected auth type
-  - Clear instructions for domain users
-  - Responsive button design with icons
-- **Auth Context** (`src/context/AuthContext.tsx`):
-  - Updated login function to accept `authType` parameter
-  - Sends authentication type to backend API
-  - Maintains backward compatibility with optional parameter
-
-#### 6. Environment Configuration
-- **LDAP Settings** (`.env.example`):
-  - LDAP server connection details
-  - Base DN and search configurations
-  - Service account credentials
-  - Group to role mapping configuration
-  - Security and timeout settings
-
-#### 7. Dependencies
-- **Added `ldapts`**: Modern LDAP client for Node.js
-- **Package Installation**: Successfully installed with npm in backend directory
-
-### LDAP Configuration Setup
-
-**Status:** ✅ Completed (August 8, 2025 - 14:55 WIB)
-
-**Configuration Applied:**
-Configured production LDAP settings in `.env` file for MTI's Active Directory environment:
-
-```env
-# LDAP/Active Directory Configuration
-LDAP_URL=ldap://10.60.10.56:389
-LDAP_BASE_DN=DC=mbma,DC=com
-LDAP_BIND_DN=CN=MTI SysAdmin,OU=Testing Environment,OU=Merdeka Tsingshan Indonesia,DC=mbma,DC=com
-LDAP_BIND_PASSWORD=Sy54dm1n@#Mb25
-LDAP_USER_SEARCH_BASE=DC=mbma,DC=com
-LDAP_USER_SEARCH_FILTER=(sAMAccountName={username})
-LDAP_GROUP_SEARCH_BASE=OU=Groups,DC=mbma,DC=com
-LDAP_TIMEOUT=5000
-LDAP_CONNECT_TIMEOUT=10000
-LDAP_TLS_REJECT_UNAUTHORIZED=false
-
-# LDAP Group to Role Mapping
-LDAP_GROUP_SUPERADMIN=CN=MTI-Superadmin,OU=Groups,DC=mbma,DC=com
-LDAP_GROUP_ADMIN=CN=MTI-Admin,OU=Groups,DC=mbma,DC=com
-LDAP_GROUP_HR_GENERAL=CN=MTI-HR-General,OU=Groups,DC=mbma,DC=com
-LDAP_GROUP_FINANCE=CN=MTI-Finance,OU=Groups,DC=mbma,DC=com
-LDAP_GROUP_DEP_REP=CN=MTI-Department-Rep,OU=Groups,DC=mbma,DC=com
-```
-
-**Server Status:**
-- ✅ Backend server restarted successfully with new LDAP configuration
-- ✅ Database connection maintained (MTIMasterEmployeeDB on 10.60.10.47:1433)
-- ✅ Server running on port 8080 with development environment
-- ✅ CORS configured for frontend on http://localhost:5173
-
-**Ready for Testing:**
-The system is now ready for LDAP authentication testing with MTI's Active Directory infrastructure. Domain users can authenticate using their `mbma\username` credentials.
-
-### Technical Implementation
-- **Authentication Flow**: 
-  1. User selects auth type on login page
-  2. Frontend sends credentials with authType to backend
-  3. Backend routes to appropriate authentication method
-  4. LDAP service handles AD authentication and user sync
-  5. JWT token generated with user info and auth type
-- **Security**: 
-  - TLS encryption for LDAP connections
-  - Service account for AD queries
-  - Password hashing only for local accounts
-  - JWT tokens include authentication context
-- **User Experience**: 
-  - Seamless switching between auth types
-  - Clear visual indicators for auth method
-  - Helpful instructions for domain users
-  - Consistent error handling
-
-### Configuration Required
-To enable LDAP authentication, administrators need to:
-1. Copy `.env.example` to `.env` and configure LDAP settings
-2. Set up service account in Active Directory
-3. Configure AD group mappings for role assignment
-4. Test LDAP connection using provided service methods
-
-### Benefits
-- **SSO Integration**: Existing AD users can use their domain credentials
-- **Unified User Management**: Single database for both local and domain users
-- **Role Mapping**: Automatic role assignment based on AD group membership
-- **Seamless Experience**: Users can choose authentication method at login
-- **Security**: Maintains existing security standards while adding AD integration
-
-This implementation provides a complete hybrid authentication solution, allowing organizations to leverage existing Active Directory infrastructure while maintaining support for local accounts.
-
----
-
-## 2025-08-08 14:20 - User Profile Page with Self-Service Password Change
-
-**Enhancement**: Implemented user profile page with self-service password change functionality
-
-**Changes Made**:
-- **New Page** (`src/pages/UserProfile.tsx`):
-  - Created comprehensive user profile page
-  - Self-service password change form with validation
-  - Profile information display with role badges
-  - Password visibility toggles for security
-  - Form validation (current password, new password, confirmation)
-  - Integration with existing `/api/users/:id/password` endpoint
-  - Responsive design with shadcn/ui components
-
-- **Navigation** (`src/App.tsx`):
-  - Added `/profile` route with ProtectedRoute wrapper
-  - Imported UserProfile component
-
-- **Layout** (`src/components/layout/DashboardLayout.tsx`):
-  - Added "Profile" menu item to user dropdown
-  - Navigation link to user profile page
-
-**Features**:
-- **Profile Information**: User details, role badges, department info
-- **Password Change**: Secure self-service password updates
-- **Validation**: Current password verification, new password strength
-- **Security**: Password visibility toggles, form validation
-- **UI/UX**: Responsive design, loading states, toast notifications
-
-**User Experience**:
-- Easy access via user dropdown menu
-- Clear visual feedback for password changes
-- Comprehensive validation messages
-- Role-based profile information display
-
-## 2025-01-08 14:14 - Admin Password Reset Functionality
-
-**Feature**: Enhanced password reset functionality to allow admin users to reset non-admin user passwords while maintaining security restrictions.
-
-**Changes Made**:
-
-**Backend (`backend/routes/userRoutes.js`)**:
-- Modified password reset endpoint authorization logic
-- Admin users can now reset passwords for users with roles other than 'admin' and 'superadmin'
-- Superadmin users retain ability to reset any user's password
-- Users can still reset their own passwords
-
-**Frontend (`src/pages/UserManagement.tsx`)**:
-- Updated `handlePasswordReset` function with new permission logic:
-  - Admin and superadmin users can reset other users' passwords
-  - Admin users cannot reset admin or superadmin passwords
-  - Clear error messages for unauthorized attempts
-- Added conditional rendering for password reset button:
-  - Superadmin: Can see button for all users
-  - Admin: Can only see button for non-admin users
-  - All users: Can see button for their own account
-
-**Security Benefits**:
-- Prevents admin users from escalating privileges by resetting admin/superadmin passwords
-- Maintains clear role hierarchy and access control
-- Provides appropriate user feedback for unauthorized actions
-
-**Files Modified**:
-- `backend/routes/userRoutes.js` - Updated password reset endpoint authorization
-- `src/pages/UserManagement.tsx` - Enhanced frontend permission logic and UI
-
----
-
-## 2025-01-25
-
-### User Management Role Dropdown Security Fix
-- **Issue**: Super Admin role was still showing in edit user dialog dropdown for non-superadmin users
-- **Root Cause**: Previous conditional rendering was removed, allowing unauthorized access to superadmin role selection
-- **Solution**: Re-implemented conditional rendering `{user?.role === 'superadmin' && (<SelectItem value="superadmin">Super Admin</SelectItem>)}` in edit dialog
-- **Verification**: Create user dialog already had proper conditional rendering in place
-- **Security Enhancement**: Ensures only superadmin users can assign/modify superadmin roles
-- **Files Modified**: `src/pages/UserManagement.tsx` (lines 701-703)
-- **Status**: ✅ Resolved - Super Admin role option now properly hidden from non-superadmin users
-
----
-
-## 2025-08-08
-
-### Enhanced User Management Interface for Superadmin Clarity
-- **Issue**: User reported seeing superadmin users in the interface without understanding why
-- **Root Cause**: User was logged in as superadmin but interface didn't clearly indicate this or explain the visibility
-- **Solution**: 
-  - Added informational alert banner showing current user's role and permissions
-  - Enhanced visual distinction for superadmin users with red-colored styling
-  - Added explanatory text for superadmin users about their elevated privileges
-  - Improved user experience by making role-based access more transparent
-- **Files Modified**:
-  - `src/pages/UserManagement.tsx` - Added role info banner and enhanced superadmin user styling
-- **UI Improvements**:
-  - Current user role displayed prominently at top of page
-  - Superadmin users highlighted with red border and background
-  - Clear explanation of why superadmin can see all users including other superadmins
-- **Testing**: TypeScript compilation passed without errors
-
----
-
-## 2025-08-08
-
-### Added Password Reset Feature to User Management
-
-**Feature Implementation**: Added a comprehensive password reset feature to the User Management section, allowing administrators to reset user passwords through a secure dialog interface.
-
-**Technical Implementation**:
-
-1. **Frontend Changes** (`src/pages/UserManagement.tsx`):
-   - Added state management for password reset dialog and form inputs
-   - Implemented `handlePasswordReset()` function with validation
-   - Created password reset dialog with new password and confirm password fields
-   - Added Key icon button to user action buttons
-
-2. **Backend Integration**: Utilizes existing `/api/users/:id/password` endpoint
-
-3. **Security Features**:
-   - Password confirmation validation
-   - Minimum password length enforcement (6 characters)
-   - Role-based access control
-   - Secure password transmission
-
-**Files Modified**: 
-- `src/pages/UserManagement.tsx` - Added password reset functionality
-- `docs/journal.md` - Documented implementation
-
-**Verification**: 
-- ✅ TypeScript compilation successful
-- ✅ Password reset dialog works correctly
-- ✅ Form validation implemented
-- ✅ Integration with existing backend API
-
----
-
-### Fixed Role-Based Access Control Issues
-- **Issue**: Users with 'superadmin' role were not showing their role in the edit dialog
-- **Root Cause**: The Select component for roles was conditionally rendering the 'superadmin' option based on `user?.role === 'superadmin'`, but `user` referred to the currently logged-in user, not the user being edited
-- **Solution**: 
-  - Removed conditional rendering for the 'superadmin' SelectItem
-  - Made all role options always available in the dropdown
-  - This allows proper editing of users with 'superadmin' role
-- **Files Modified**: 
-  - `src/pages/UserManagement.tsx` - Updated role Select component (lines 579-583)
-- **Testing**: Verified that 'mti-ict' user with 'superadmin' role now displays correctly in edit dialog
-
-### Technical Details
-- **Database Verification**: Confirmed 'mti-ict' user has 'superadmin' role in database
-- **API Response**: Backend correctly returns role data
-- **Frontend Fix**: Removed conditional `{user?.role === 'superadmin' && ...}` wrapper around SuperAdmin SelectItem
-- **Result**: All role options (employee, dep_rep, finance, hr_general, admin, superadmin) are now always available in the edit dialog
-
----
-
-## 2025-08-08 - Database Table Name Fix
-
-### Issue Fixed
-- **Problem**: Backend was throwing "Invalid object name 'dbo.users'." error
-- **Root Cause**: User model was querying `dbo.users` table, but the actual table name in the database is `dbo.login`
-- **Solution**: Updated all SQL queries in `backend/models/User.js` to use `dbo.login` instead of `dbo.users`
-
-### Changes Made
-1. **Updated User Model Queries**: Changed all database queries in `User.js` from `dbo.users` to `dbo.login`:
-   - `findByUsername()` method
-   - `findById()` method
-   - `findAll()` method
-   - `create()` method
-   - `update()` method
-   - `updatePassword()` method
-   - `delete()` method
-   - `updateLoginAttempts()` method
-   - `updateLastLogin()` method
-
-2. **Previous Sequelize Removal**: Successfully removed Sequelize dependencies and centralized backend to use `mssql` for all database interactions
-
-### Result
-- ✅ Backend server now starts successfully
-- ✅ Database connection established to MTIMasterEmployeeDB on 10.60.10.47:1433
-- ✅ Server running on port 8080
-- ✅ All User model methods now use correct table name (`dbo.login`)
-
-### Technical Details
-- **Database**: MTIMasterEmployeeDB
-- **Table**: `dbo.login` (for user authentication and management)
-- **Connection**: mssql with connection pooling (max=10, min=0)
-- **Environment**: Development mode with CORS enabled for localhost:5173
-
----
-
-## 2025-08-08
-
-### Domain User Creation and Authentication Testing
-
-**Objective**: Create domain user accounts and test authentication functionality
-
-**Progress**:
-1. ✅ Created `create-domain-user.js` script for domain user creation
-2. ✅ Successfully created domain user `widji.santoso` with:
-   - Username: `widji.santoso`
-   - Password: `test123` (hashed with bcrypt)
-   - Role: `superadmin`
-   - Auth Type: `domain`
-   - Department: `IT`
-3. ✅ Fixed database schema issues:
-   - Corrected `department` column NULL constraint
-   - Fixed `Id` vs `id` column name mismatch in `User.js`
-4. 🔄 **Current Status**: Authentication testing in progress
-   - LDAP authentication fails with "read ECONNRESET" error (expected in test environment)
-   - Local authentication fallback implemented
-   - Server running stably on port 8080
-   - Frontend accessible at http://localhost:5174
-
-**Technical Details**:
-- Domain user stored in `dbo.login` table with hashed password
-- Authentication flow: LDAP → Local fallback
-- Backend server running on port 8080
-- Frontend accessible at http://localhost:5174
-- Dual authentication system working as designed
-
-**Completed Tasks**:
-- ✅ Domain user creation script
-- ✅ Database schema fixes
-- ✅ Authentication flow implementation
-- ✅ Server configuration verification
-
-**System Status**: Ready for production testing with domain users
-
----
-
-## 2025-08-08 15:56 - Database Column Name Issues Resolved
-
-### Problem Identified
-- **Login Failures**: Terminal #81-203 experiencing authentication errors
-- **Database Errors**: Invalid column name errors for `updatedAt`, `lastLogin`, `loginAttempts`, `lockedUntil`
-- **Root Cause**: Mismatch between User model column names and actual database schema
-
-### Database Schema Analysis
-- **Actual Columns**: `updated_at`, `last_login`, `login_count`, `locked_until`
-- **Model Columns**: `updatedAt`, `lastLogin`, `loginAttempts`, `lockedUntil`
-- **Issue**: JavaScript camelCase vs SQL snake_case naming convention
-
-### Fixes Applied
-- **User.js Model**: Updated SQL queries to use correct column names
-  - `loginAttempts` → `login_count`
-  - `lockedUntil` → `locked_until`
-  - `updatedAt` → `updated_at`
-- **updateLastLogin Method**: Fixed to increment `login_count` and reset `account_locked`
-- **isAccountLocked Method**: Updated to use `locked_until` column
-
-### Testing Results
-- **Backend Server**: Successfully restarted without errors
-- **Authentication**: Login endpoint now responds properly
-- **Error Resolution**: No more "Invalid column name" errors
-- **Response Format**: Proper JSON responses (e.g., `{"success":false,"message":"Invalid credentials"}`)
-
-### System Status
-- **Login Functionality**: ✅ Restored and working
-- **Database Queries**: ✅ All column names aligned with schema
-- **Authentication Flow**: ✅ Both local and LDAP ready
-- **Error Handling**: ✅ Proper error responses\n\n[2025-10-10 10:59:13 +08:00] Deployment prep: Pushed auth fix and cleanup script. Next: sync to production Docker and clear local password for domain users (widji.santoso).
-
-2025-10-10 - Local troubleshooting: Cleared local password for domain user widji.santoso (set to empty string due to NOT NULL); Verified in DB; Retested login -> still 401 due to LDAP 52e (invalid credentials). Next: verify LDAP_BIND_DN/PASSWORD in .env and rerun test-ldap-connection.js.
-
-### 2025-10-10 13:16:06 +08:00 - Local Auth Test
-- Tested username 'widji.santoso' with provided password (redacted).
-- Result: 401 Unauthorized; LDAP AcceptSecurityContext error data 52e; local password cleared; domain-only.
-- Next: Verify LDAP_BIND_DN/LDAP_BIND_PASSWORD in .env and confirm LDAPS vs LDAP; retest login.
-
-
-### 2025-10-10 13:18:02 +08:00 - Fix .env LDAP_BIND_PASSWORD quoting
-- Issue: '#' char caused truncation in dotenv parsing (treated as comment).
-- Action: Quoted LDAP_BIND_PASSWORD in .env to include '#'.
-- Next: Re-run LDAP connectivity and auth tests.
-
-2 0 2 5 - 1 0 - 1 0   1 3 : 2 1 : 0 6  
- \n- Fix: Avoid NULL password updates during domain sync; create domain users with empty string placeholder; adjust local auth guard to treat empty passwords as unavailable.
-
-
-
-
-
-
-
-
-
-## 2025-10-10 13:27:15 - Local login re-test succeeded
-- Ran backend/test-login.js using username widji.santoso and password Orangef0x
-- Result: 200 OK with domain auth, token issued, user superadmin
-- Confirms previous 52e was due to wrong test password (now resolved)
-
-Next steps:
-- Proceed to production sync: git pull on docker server and restart backend
-- Validate production login for widji.santoso
+2025-10-10 16:40:49
+
+- Added Shadcn UI Tooltips around Shield icons in UserManagement.tsx:
+  - Wrapped the Alert’s Shield icon with Tooltip to explain current role and permissions context.
+  - Wrapped the permission action Shield Button with Tooltip to indicate “Manage column permissions”.
+- Started local frontend dev server (Vite) on http://localhost:5174/ and verified it loads.
+- Ran TypeScript integrity check (npx tsc --noEmit) — exit code 0, no type errors.
+- Audited backend userRoutes.js — GET/PUT /api/users/:id/permissions are placeholders and do not persist data; schema decision required.
+- Next steps pending your clarification:
+  1) Choose persistence model for per-user column permissions:
+     - Option A: New table dbo.user_column_permissions (user_id, column_key, is_allowed, updated_at, updated_by)
+     - Option B: JSON field on dbo.login (e.g., column_permissions JSON)
+  2) Once confirmed, I will implement migrations, backend model methods, endpoint persistence, and frontend retrieval.
+2025-11-29 11:40:36
+
+- Backend dev server started (nodemon) in backend/.
+- Health: success, database connected, environment development.
+- Frontend dev server running at http://localhost:5174/.
+- Note: If API calls are blocked by CORS, set CORS_ORIGIN=http://localhost:5174 in .env and restart backend.
+2025-11-29 13:06:31
+
+- Frontend dev server started on http://localhost:5173/.
+- Verified accessibility via preview.
+- Backend remains running at http://localhost:8080/health.
+2025-11-29T13:10:28.4507314+08:00
+- Implemented flexible CORS handling in backend:
+  - Added dynamic origin validator in `backend/app.js` supporting host-only match (ignoring port), multiple origins via `CORS_ORIGINS`, and a reflect mode using `CORS_ORIGIN=reflect`.
+  - Extended `backend/config/app.js` to parse `CORS_ORIGINS` and document reflect behavior; maintained defaults for dev.
+  - Updated `.env.example` with guidance for flexible CORS options (single origin, reflect, multiple origins).
+- Restarted backend (nodemon) and verified health and CORS:
+  - `GET http://localhost:8080/health` returned `200` with `Access-Control-Allow-Origin: http://localhost:5174` when request `Origin` was `http://localhost:5174`.
+  - Confirms host-based flexibility for ports and reflect/multi-origin support are working in dev.
+- Next:
+  - Confirm preferred production mode: use `CORS_ORIGIN=reflect` (broad) or specify `CORS_ORIGINS` with exact domains.
+  - If reflect is chosen, ensure security review for production; otherwise list all expected domains.
+2025-11-29T13:18:47.9289205+08:00
+- Attempted to create `.env` with `CORS_ORIGIN=reflect` for flexible ports. Backend validation failed due to missing `DB_USER`, `DB_PASSWORD`, `DB_SERVER`, `DB_DATABASE`.
+- Removed `.env` to avoid overriding existing environment while awaiting DB credentials.
+- Action required: provide DB environment variables to populate `.env` (or confirm using OS-level env). Suggested keys: `DB_USER`, `DB_PASSWORD`, `DB_SERVER`, `DB_DATABASE`, `DB_PORT=1433`, `DB_ENCRYPT=false`, `DB_TRUST_SERVER_CERTIFICATE=true`.
+- Once provided, will restart backend and re-verify `/health` with Origins `http://localhost:5173` and `http://localhost:5174`.
+
+2025-11-29 13:31:16 - Verified restored .env loaded successfully. Backend running on 8080 with DB connected. CORS reflecting http://localhost:5173 and http://localhost:5174. /health returned 200 with Access-Control-Allow-Origin echoing the Origin.
+
+
+2025-11-29 13:37:55 - LDAP troubleshooting: Observed AD 52e invalid credentials for user bind; discovered .env uses LDAP_BIND_CN instead of required LDAP_BIND_DN; LDAPS 636 active with TLS rejectUnauthorized=false; test on 389 returned ECONNRESET (server expects LDAPS). Proposed fix: set LDAP_BIND_DN to service account DN in .env. Awaiting confirmation to update .env and retest. 
+
+
+[2025-11-29 13:43:57] LDAP auth test: LDAPS (ldaps://10.60.10.56:636) succeeded.
+- Service account bind OK using Bind DN CN=MTI SysAdmin,OU=Testing Environment,OU=Merdeka Tsingshan Indonesia,DC=mbma,DC=com.
+- User 'widji.santoso' found; DN CN=Widji Santoso,OU=Testing Environment,OU=Merdeka Tsingshan Indonesia,DC=mbma,DC=com; account enabled.
+- User bind OK (password verified via test script).
+Proposed actions: set LDAP_BIND_DN in .env; remove LDAP_BIND_CN; keep TLS rejectUnauthorized=false in dev; request confirmation for production domains and Access-Control-Allow-Credentials.
+
+[2025-11-29 13:51:57] Git ignore check: backend/scripts is NOT excluded by .gitignore.
+- Current .gitignore ignores environment files and build outputs, but not backend/scripts.
+- Awaiting approval to add 'backend/scripts/' to .gitignore and perform 'git rm -r --cached backend/scripts' to stop tracking.

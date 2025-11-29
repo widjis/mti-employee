@@ -53,9 +53,55 @@ const limiter = rateLimit({
 
 app.use(limiter);
 
-// CORS configuration
+// CORS configuration (flexible origin handling)
+// Supports:
+// - Single origin via CORS_ORIGIN
+// - Comma-separated origins via CORS_ORIGINS
+// - Reflect mode when CORS_ORIGIN is set to '*' or 'reflect' (allows any port)
+const allowedOrigins = (config.server.corsOrigins || [])
+  .concat(config.server.corsOrigin ? [config.server.corsOrigin] : [])
+  .filter(Boolean);
+
+const isReflectMode = ['*', 'reflect'].includes(config.server.corsOrigin);
+
+const originValidator = (origin, callback) => {
+  // Allow non-browser requests or same-origin
+  if (!origin) return callback(null, true);
+
+  // Reflect incoming origin (works with credentials)
+  if (isReflectMode) return callback(null, true);
+
+  // Exact match against allowed origins
+  if (allowedOrigins.includes(origin)) return callback(null, true);
+
+  try {
+    const originUrl = new URL(origin);
+    const originHost = `${originUrl.protocol}//${originUrl.hostname}`;
+    // Host-only match (ignore port differences)
+    for (const o of allowedOrigins) {
+      try {
+        const u = new URL(o);
+        const allowedHost = `${u.protocol}//${u.hostname}`;
+        if (allowedHost === originHost) {
+          return callback(null, true);
+        }
+      } catch (e) {
+        // If an entry is host-only (e.g., http://localhost), compare as-is
+        if (o === originHost) {
+          return callback(null, true);
+        }
+      }
+    }
+  } catch (e) {
+    // If origin is malformed, reject
+    return callback(new Error('Invalid origin format'));
+  }
+
+  return callback(new Error(`Not allowed by CORS: ${origin}`));
+};
+
 app.use(cors({
-  origin: config.server.corsOrigin,
+  origin: originValidator,
   methods: ['GET','POST','PUT','DELETE'],
   credentials: true,
   optionsSuccessStatus: 200

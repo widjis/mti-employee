@@ -18,7 +18,13 @@ const config = {
         port: parseInt(process.env.PORT) || 8080,
         host: process.env.HOST || 'localhost',
         nodeEnv: process.env.NODE_ENV || 'development',
+        // CORS configuration
+        // CORS_ORIGIN:
+        //  - single origin (e.g., http://localhost:5173)
+        //  - 'reflect' or '*' to reflect the request origin (dev convenience)
+        // CORS_ORIGINS: comma-separated list of additional allowed origins
         corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+        corsOrigins: process.env.CORS_ORIGINS?.split(',').map(s => s.trim()).filter(Boolean) || [],
         bodyLimit: process.env.BODY_LIMIT || '10mb'
     },
 

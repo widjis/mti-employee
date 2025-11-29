@@ -4,6 +4,8 @@ export interface User {
   name: string;
   role: 'superadmin' | 'admin' | 'hr_general' | 'finance' | 'dep_rep' | 'employee';
   department?: string;
+  auth_type?: 'local' | 'domain';
+  domain_username?: string;
 }
 
 // Role-based access control matrix

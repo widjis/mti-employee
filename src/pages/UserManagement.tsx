@@ -30,6 +30,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { User, ROLE_PERMISSIONS } from '@/types/user';
 import DashboardLayout from '@/components/layout/DashboardLayout';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 
 interface UserWithPermissions extends User {
   createdAt: string;
@@ -477,7 +478,14 @@ const UserManagement: React.FC = () => {
       <div className="container mx-auto p-6 space-y-6">
       {/* Current User Role Info */}
       <Alert className="border-blue-200 bg-blue-50">
-        <Shield className="h-4 w-4" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Shield className="h-4 w-4" />
+          </TooltipTrigger>
+          <TooltipContent>
+            <p>Your current role and permissions context</p>
+          </TooltipContent>
+        </Tooltip>
         <AlertDescription>
           You are logged in as <strong>{user?.name}</strong> with <strong>{user?.role?.replace('_', ' ').toUpperCase()}</strong> role.
           {user?.role === 'superadmin' && (
@@ -617,6 +625,12 @@ const UserManagement: React.FC = () => {
                   <Badge variant={userItem.status === 'active' ? 'default' : 'secondary'}>
                     {userItem.status}
                   </Badge>
+                  {/* Auth Type Badge */}
+                  {userItem.auth_type && (
+                    <Badge variant="outline" className={userItem.auth_type === 'domain' ? 'border-purple-300 text-purple-700' : 'border-gray-300 text-gray-700'}>
+                      {userItem.auth_type === 'domain' ? 'DOMAIN' : 'LOCAL'}
+                    </Badge>
+                  )}
                   <div className="flex space-x-1">
                     <Button
                       variant="outline"
@@ -647,13 +661,20 @@ const UserManagement: React.FC = () => {
                         <Key className="h-4 w-4" />
                       </Button>
                     )}
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => openPermissionDialog(userItem)}
-                    >
-                      <Shield className="h-4 w-4" />
-                    </Button>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openPermissionDialog(userItem)}
+                        >
+                          <Shield className="h-4 w-4" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>
+                        Manage column permissions
+                      </TooltipContent>
+                    </Tooltip>
                     {userItem.id !== user?.id && (
                       <Button
                         variant="outline"
@@ -682,6 +703,15 @@ const UserManagement: React.FC = () => {
           </DialogHeader>
           {selectedUser && (
             <div className="space-y-4">
+              {/* Auth Info */}
+              <Alert className="bg-slate-50 border-slate-200">
+                <AlertDescription>
+                  Authentication: <strong>{selectedUser.auth_type === 'domain' ? 'Domain' : 'Local'}</strong>
+                  {selectedUser.auth_type === 'domain' && selectedUser.domain_username && (
+                    <span className="ml-2 text-sm text-muted-foreground">(AD: {selectedUser.domain_username})</span>
+                  )}
+                </AlertDescription>
+              </Alert>
               <div>
                 <Label htmlFor="edit-name">Full Name</Label>
                 <Input

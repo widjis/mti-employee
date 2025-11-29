@@ -103,3 +103,6 @@ uploads/
 # Lock files (keep package-lock.json but ignore others)
 yarn.lock
 pnpm-lock.yaml
+
+# Development scripts (exclude local helper/test scripts)
+backend/scripts/
