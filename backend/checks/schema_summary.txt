@@ -1,0 +1,15 @@
+Schema Validation Summary
+File: backend/scripts/Comben Master Data Column Assignment.xlsx | Sheet: DB Schema | Schema: dbo
+
+Total rows: 64
+Missing in table: 1
+Missing in catalog: 1
+Label mismatches: 0
+
+Missing in table (up to 50):
+employee_bank, employee_contact, employee_core, employee_employment, employee_insurance, employee_onboard, employee_travel.employee_id | Header=Emp. ID
+
+Missing in catalog (up to 50):
+employee_bank, employee_contact, employee_core, employee_employment, employee_insurance, employee_onboard, employee_travel.employee_id | Header=Emp. ID
+
+Label mismatches (catalog vs excel, up to 50):

@@ -4,15 +4,89 @@ import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 import { handleValidationErrors } from '../middleware/validation.js';
 import { query } from 'express-validator';
 import { sql, poolPromise } from '../db.js';
-import {
-  getAllowedColumns,
-  getAllowedSheets,
-  getExcelHeaders,
-  filterEmployeeDataByRole,
-  getRoleInfo
-} from '../config/roleColumnMapping.js';
+import { getAllowedSheets } from '../config/roleColumnMapping.js';
 
 const router = express.Router();
+
+// Helper: derive IND/EXP and active/inactive flags from available fields
+function deriveFlags(employee) {
+  const nationalityRaw = (employee?.nationality || '').toString().trim().toLowerCase();
+  const localSet = new Set(['indonesia', 'indonesian', 'id', 'wni']);
+  const isIndonesian = nationalityRaw ? localSet.has(nationalityRaw) : false;
+
+  const statusRaw = (employee?.status || employee?.employment_status || '').toString().trim();
+  const terminatedDate = employee?.terminated_date;
+
+  const isTerminated = Boolean(terminatedDate) || statusRaw === 'Terminated';
+  const isActive = statusRaw === 'Active' && !isTerminated;
+  const isInactive = !isActive && !isTerminated && !!statusRaw && statusRaw !== 'Active';
+
+  const indActive = isIndonesian && isActive;
+  const indInactive = isIndonesian && (isInactive || isTerminated);
+  const expActive = !isIndonesian && isActive;
+  const expInactive = !isIndonesian && (isInactive || isTerminated);
+
+  return {
+    isIndonesian,
+    isActive,
+    isInactive,
+    isTerminated,
+    indActive,
+    indInactive,
+    expActive,
+    expInactive
+  };
+}
+
+// Helper: format snake_case to Title Case with spaces
+function formatHeader(labelOrName) {
+  if (!labelOrName) return '';
+  return labelOrName
+    .toString()
+    .replace(/_/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\w\S*/g, (w) => w.charAt(0).toUpperCase() + w.slice(1));
+}
+
+// Helper: fetch role info by role_name (from token)
+async function getRoleInfoFromDb(roleName) {
+  const pool = await poolPromise;
+  const request = pool.request();
+  request.input('roleName', roleName);
+  const result = await request.query(
+    `SELECT role_id, role_name, role_display_name FROM dbo.roles WHERE role_name = @roleName`
+  );
+  return result.recordset[0] || null;
+}
+
+// Helper: get allowed export columns for a role from DB
+async function getDbAllowedExportColumns(roleId) {
+  const pool = await poolPromise;
+  const request = pool.request();
+  request.input('roleId', roleId);
+  const result = await request.query(`
+    SELECT c.column_name, c.display_label, c.table_name
+    FROM dbo.column_catalog c
+    INNER JOIN dbo.role_column_access rca ON rca.column_id = c.id
+    WHERE rca.role_id = @roleId
+      AND c.is_active = 1
+      AND c.is_exportable = 1
+      AND rca.export_allowed = 1
+    ORDER BY c.table_name, c.column_name
+  `);
+  return result.recordset;
+}
+
+// Helper: build Excel headers map from catalog entries
+function buildExcelHeadersMap(catalogRows) {
+  const headers = {};
+  for (const row of catalogRows) {
+    const header = row.display_label ? row.display_label : formatHeader(row.column_name);
+    headers[row.column_name] = header;
+  }
+  return headers;
+}
 
 /**
  * Get employee data filtered by role permissions
@@ -31,15 +105,20 @@ router.get('/data',
     try {
       const userRole = req.user.role;
       const { sheet, format = 'json', department, status = 'active' } = req.query;
-      
-      // Get role permissions
-      const roleInfo = getRoleInfo(userRole);
+
+      // Resolve role info from DB
+      const roleInfo = await getRoleInfoFromDb(userRole);
       if (!roleInfo) {
         return res.status(403).json({ error: 'Invalid role or insufficient permissions' });
       }
-      
-      const allowedColumns = getAllowedColumns(userRole);
+
+      // Allowed sheets (still static for now)
       const allowedSheets = getAllowedSheets(userRole);
+
+      // Get allowed export columns for this role from DB
+      const catalogRows = await getDbAllowedExportColumns(roleInfo.role_id);
+      const allowedColumns = catalogRows.map(r => r.column_name);
+      const excelHeaders = buildExcelHeadersMap(catalogRows);
       
       // Validate sheet access
       if (sheet && !allowedSheets.includes(sheet)) {
@@ -92,23 +171,26 @@ router.get('/data',
           request.input(`param${index}`, param);
         });
         
-        const result = await request.query(sqlQuery);
-        const employees = result.recordset;
-      
-      // Filter data based on role permissions
-      const filteredEmployees = filterEmployeeDataByRole(employees, userRole);
+      const result = await request.query(sqlQuery);
+      const filteredEmployees = result.recordset;
       
       if (format === 'excel') {
-        // Generate Excel file
-        const excelHeaders = getExcelHeaders(userRole);
-        
         // Transform data for Excel export
+        const derivedHeaders = ['IND Active', 'IND Inactive', 'EXP Active', 'EXP Inactive'];
         const excelData = filteredEmployees.map(employee => {
           const row = {};
           Object.keys(excelHeaders).forEach(dbField => {
             const excelHeader = excelHeaders[dbField];
-            row[excelHeader] = employee[dbField] || '';
+            row[excelHeader] = employee[dbField] ?? '';
           });
+
+          // Append derived flags using checkmark/dash for readability
+          const flags = deriveFlags(employee);
+          row['IND Active'] = flags.indActive ? '✔' : '—';
+          row['IND Inactive'] = flags.indInactive ? '✔' : '—';
+          row['EXP Active'] = flags.expActive ? '✔' : '—';
+          row['EXP Inactive'] = flags.expInactive ? '✔' : '—';
+
           return row;
         });
         
@@ -117,13 +199,18 @@ router.get('/data',
         const worksheet = XLSX.utils.json_to_sheet(excelData);
         
         // Set column widths
-        const columnWidths = Object.values(excelHeaders).map(header => ({
-          wch: Math.max(header.length, 15)
-        }));
+        const columnWidths = [
+          ...Object.values(excelHeaders).map(header => ({
+            wch: Math.max(header.length, 15)
+          })),
+          ...['IND Active', 'IND Inactive', 'EXP Active', 'EXP Inactive'].map(h => ({
+            wch: Math.max(h.length, 15)
+          }))
+        ];
         worksheet['!cols'] = columnWidths;
         
         // Add worksheet to workbook
-        const sheetName = sheet || `${roleInfo.name} Data`;
+        const sheetName = sheet || `${roleInfo.role_display_name || roleInfo.role_name} Data`;
         XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
         
         // Generate Excel buffer
@@ -137,10 +224,24 @@ router.get('/data',
         
         return res.send(excelBuffer);
       } else {
-        // Return JSON data
+        // Return JSON data with derived flags appended
+        const dataWithDerived = filteredEmployees.map(emp => {
+          const flags = deriveFlags(emp);
+          return {
+            ...emp,
+            is_indonesian: flags.isIndonesian,
+            is_active: flags.isActive,
+            is_inactive: flags.isInactive,
+            is_terminated: flags.isTerminated,
+            ind_active: flags.indActive,
+            ind_inactive: flags.indInactive,
+            exp_active: flags.expActive,
+            exp_inactive: flags.expInactive
+          };
+        });
         res.json({
           success: true,
-          data: filteredEmployees,
+          data: dataWithDerived,
           meta: {
             role: userRole,
             roleInfo: roleInfo,
@@ -171,15 +272,17 @@ router.get('/options',
   async (req, res) => {
     try {
       const userRole = req.user.role;
-      const roleInfo = getRoleInfo(userRole);
-      
+      const roleInfo = await getRoleInfoFromDb(userRole);
       if (!roleInfo) {
         return res.status(403).json({ error: 'Invalid role or insufficient permissions' });
       }
-      
-      const allowedColumns = getAllowedColumns(userRole);
+
+      // Columns and headers from DB
+      const catalogRows = await getDbAllowedExportColumns(roleInfo.role_id);
+      const allowedColumns = catalogRows.map(r => r.column_name);
+      const excelHeaders = buildExcelHeadersMap(catalogRows);
+      // Allowed sheets still static for now
       const allowedSheets = getAllowedSheets(userRole);
-      const excelHeaders = getExcelHeaders(userRole);
       
       // Get available departments (if user has access to department field)
       let departments = [];
@@ -218,6 +321,7 @@ router.get('/options',
           allowedColumns: allowedColumns,
           allowedSheets: allowedSheets,
           excelHeaders: excelHeaders,
+          derivedHeaders: ['IND Active', 'IND Inactive', 'EXP Active', 'EXP Inactive'],
           availableDepartments: departments,
           exportFormats: ['json', 'excel'],
           statusOptions: ['active', 'inactive', 'all']
@@ -240,14 +344,14 @@ router.get('/template',
   async (req, res) => {
     try {
       const userRole = req.user.role;
-      const roleInfo = getRoleInfo(userRole);
-      
+      const roleInfo = await getRoleInfoFromDb(userRole);
       if (!roleInfo) {
         return res.status(403).json({ error: 'Invalid role or insufficient permissions' });
       }
-      
-      const allowedColumns = getAllowedColumns(userRole);
-      const excelHeaders = getExcelHeaders(userRole);
+
+      const catalogRows = await getDbAllowedExportColumns(roleInfo.role_id);
+      const allowedColumns = catalogRows.map(r => r.column_name);
+      const excelHeaders = buildExcelHeadersMap(catalogRows);
       
       // Create template with headers only
       const templateData = [{}];
@@ -255,15 +359,24 @@ router.get('/template',
         const excelHeader = excelHeaders[dbField];
         templateData[0][excelHeader] = '';
       });
+      // Include derived headers in template for convenience
+      ['IND Active', 'IND Inactive', 'EXP Active', 'EXP Inactive'].forEach(h => {
+        templateData[0][h] = '';
+      });
       
       // Create workbook
       const workbook = XLSX.utils.book_new();
       const worksheet = XLSX.utils.json_to_sheet(templateData);
       
       // Set column widths
-      const columnWidths = Object.values(excelHeaders).map(header => ({
-        wch: Math.max(header.length, 15)
-      }));
+      const columnWidths = [
+        ...Object.values(excelHeaders).map(header => ({
+          wch: Math.max(header.length, 15)
+        })),
+        ...['IND Active', 'IND Inactive', 'EXP Active', 'EXP Inactive'].map(h => ({
+          wch: Math.max(h.length, 15)
+        }))
+      ];
       worksheet['!cols'] = columnWidths;
       
       // Add worksheet to workbook
@@ -296,8 +409,7 @@ router.get('/stats',
   async (req, res) => {
     try {
       const userRole = req.user.role;
-      const roleInfo = getRoleInfo(userRole);
-      
+      const roleInfo = await getRoleInfoFromDb(userRole);
       if (!roleInfo) {
         return res.status(403).json({ error: 'Invalid role or insufficient permissions' });
       }
@@ -334,6 +446,11 @@ router.get('/stats',
         const result = await request.query(statsQuery);
         const stats = result.recordset;
       
+      // Count accessible columns via DB
+      const catalogRows = await getDbAllowedExportColumns(roleInfo.role_id);
+      const accessibleColumns = catalogRows.length;
+      const accessibleSheets = getAllowedSheets(userRole).length;
+
       res.json({
         success: true,
         stats: {
@@ -344,8 +461,8 @@ router.get('/stats',
           inactiveEmployees: stats[0].inactive_employees,
           totalDepartments: stats[0].total_departments,
           totalDivisions: stats[0].total_divisions,
-          accessibleColumns: getAllowedColumns(userRole).length,
-          accessibleSheets: getAllowedSheets(userRole).length
+          accessibleColumns,
+          accessibleSheets
         }
       });
       

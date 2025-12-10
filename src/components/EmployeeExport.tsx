@@ -31,6 +31,7 @@ interface ExportOptions {
   allowedColumns: string[];
   allowedSheets: string[];
   excelHeaders: Record<string, string>;
+  derivedHeaders?: string[];
   availableDepartments: string[];
   exportFormats: string[];
   statusOptions: string[];
@@ -76,7 +77,7 @@ const EmployeeExport: React.FC = () => {
       
       if (response.ok) {
         const data = await response.json();
-        setExportOptions(data);
+        setExportOptions(data.options);
       } else {
         toast({
           title: "Error",
@@ -420,7 +421,10 @@ const EmployeeExport: React.FC = () => {
               <div className="space-y-2">
                 <h4 className="font-medium">Template includes:</h4>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                  {Object.values(exportOptions.excelHeaders).map((header, index) => (
+                  {[
+                    ...Object.values(exportOptions.excelHeaders),
+                    ...((exportOptions.derivedHeaders ?? []) as string[])
+                  ].map((header, index) => (
                     <div key={index} className="flex items-center gap-2 text-sm">
                       <CheckCircle className="h-3 w-3 text-green-500" />
                       {header}

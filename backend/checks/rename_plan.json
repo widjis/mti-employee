@@ -1,0 +1,157 @@
+{
+  "schema": "dbo",
+  "renameSuggestions": [
+    {
+      "table_name": "employee_core",
+      "from": "BranchID",
+      "to": "branch_id"
+    },
+    {
+      "table_name": "employee_core",
+      "from": "OfficeEmail",
+      "to": "office_email"
+    },
+    {
+      "table_name": "employee_insurance",
+      "from": "FPGNo",
+      "to": "fpg_no"
+    },
+    {
+      "table_name": "employee_insurance",
+      "from": "OWLEXANo",
+      "to": "owlexa_no"
+    },
+    {
+      "table_name": "employee_core",
+      "from": "MonthofBirthday",
+      "to": "month_of_birthday"
+    },
+    {
+      "table_name": "employee_core",
+      "from": "IDCARDMTI",
+      "to": "id_card_mti"
+    },
+    {
+      "table_name": "employee_bank",
+      "from": "BankCode",
+      "to": "bank_code"
+    },
+    {
+      "table_name": "employee_bank",
+      "from": "ICBCBankAccountNo",
+      "to": "icbc_bank_account_no"
+    },
+    {
+      "table_name": "employee_travel",
+      "from": "PassportExpiry",
+      "to": "passport_expiry"
+    },
+    {
+      "table_name": "employee_travel",
+      "from": "KITASExpiry",
+      "to": "kitas_expiry"
+    },
+    {
+      "table_name": "employee_travel",
+      "from": "RPTKANo",
+      "to": "rptka_no"
+    },
+    {
+      "table_name": "employee_travel",
+      "from": "RPTKAPosition",
+      "to": "rptka_position"
+    },
+    {
+      "table_name": "employee_travel",
+      "from": "KITASAddress",
+      "to": "kitas_address"
+    },
+    {
+      "table_name": "employee_bank",
+      "from": "ICBCUsername",
+      "to": "icbc_username"
+    },
+    {
+      "table_name": "employee_checklist",
+      "from": "KITASChecklist",
+      "to": "kitas_checklist"
+    },
+    {
+      "table_name": "employee_checklist",
+      "from": "IMTAChecklist",
+      "to": "imta_checklist"
+    },
+    {
+      "table_name": "employee_checklist",
+      "from": "RPTKAChecklist",
+      "to": "rptka_checklist"
+    },
+    {
+      "table_name": "employee_checklist",
+      "from": "NPWPChecklist",
+      "to": "npwp_checklist"
+    },
+    {
+      "table_name": "employee_checklist",
+      "from": "BPJSKESChecklist",
+      "to": "bpjs_kes_checklist"
+    },
+    {
+      "table_name": "employee_checklist",
+      "from": "BPJSTKChecklist",
+      "to": "bpjs_tk_checklist"
+    },
+    {
+      "table_name": "employee_checklist",
+      "from": "BankChecklist",
+      "to": "bank_checklist"
+    }
+  ],
+  "additions": [
+    {
+      "table_name": "employee_bank, employee_contact, employee_core, employee_employment, employee_insurance, employee_onboard, employee_travel",
+      "column_name": "employee_id",
+      "display_label": "Emp. ID"
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "employment_status",
+      "display_label": "Employment Status"
+    },
+    {
+      "table_name": "employee_insurance",
+      "column_name": "social_insurance_no_alt",
+      "display_label": "Social Insurance No (alt BPJS TK)"
+    },
+    {
+      "table_name": "employee_insurance",
+      "column_name": "bpjs_kes_no_alt",
+      "display_label": "BPJS Kesehatan No (alt BPJS KES)"
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "locality_status",
+      "display_label": "Locality Status"
+    },
+    {
+      "table_name": "employee_travel",
+      "column_name": "name_as_passport",
+      "display_label": "Name as Pasport"
+    },
+    {
+      "table_name": "employee_travel",
+      "column_name": "job_title_kitas",
+      "display_label": "Job Tittle (Based on KITAS)"
+    },
+    {
+      "table_name": "employee_notes",
+      "column_name": "note",
+      "display_label": "Cek Document / Note"
+    },
+    {
+      "table_name": "employee_checklist",
+      "column_name": "passport_checklist",
+      "display_label": "Paspor (Checklist)"
+    }
+  ]
+}

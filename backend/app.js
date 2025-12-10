@@ -3,6 +3,7 @@ import loginRouter from './route.js';
 import employeeRouter from './employeeRouter.js';
 import openProjectRoutes from './routes/openProjectRoutes.js';
 import employeeExportRoutes from './routes/employeeExportRoutes.js';
+import roleColumnRoutes from './routes/roleColumnRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import cors from 'cors';
 import helmet from 'helmet';
@@ -145,6 +146,7 @@ app.use('/api', loginRouter);
 app.use('/api', employeeRouter);
 app.use('/api/openproject', openProjectRoutes);
 app.use('/api/employee-export', employeeExportRoutes);
+app.use('/api', roleColumnRoutes);
 app.use('/api/users', userRoutes);
 
 // Handle unmatched routes

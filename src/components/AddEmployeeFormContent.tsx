@@ -101,7 +101,7 @@ const AddEmployeeFormContent: React.FC<AddEmployeeFormContentProps> = ({ onClose
     const [formData, setFormData] = useState<Employee>(initialState);
     const [isSubmitting, setIsSubmitting] = useState(false);
 
-    const handleInputChange = (field: keyof Employee, value: any) => {
+    const handleInputChange = <K extends keyof Employee>(field: K, value: Employee[K]) => {
         setFormData(prev => ({
             ...prev,
             [field]: value
@@ -135,11 +135,6 @@ const AddEmployeeFormContent: React.FC<AddEmployeeFormContentProps> = ({ onClose
 
             const result = await response.json();
             onAdd(formData);
-            
-            toast({
-                title: "Success",
-                description: "Employee added successfully",
-            });
 
             // Reset form
             setFormData(initialState);
@@ -220,7 +215,7 @@ const AddEmployeeFormContent: React.FC<AddEmployeeFormContentProps> = ({ onClose
                             <select
                                 id="gender"
                                 value={formData.gender}
-                                onChange={(e) => handleInputChange('gender', e.target.value)}
+                                onChange={(e) => handleInputChange('gender', e.target.value as Employee['gender'])}
                                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             >
                                 <option value="">Select gender</option>
@@ -295,7 +290,7 @@ const AddEmployeeFormContent: React.FC<AddEmployeeFormContentProps> = ({ onClose
                             <select
                                 id="blood_type"
                                 value={formData.blood_type}
-                                onChange={(e) => handleInputChange('blood_type', e.target.value)}
+                                onChange={(e) => handleInputChange('blood_type', e.target.value as Employee['blood_type'])}
                                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             >
                                 <option value="">Select blood type</option>
@@ -489,7 +484,7 @@ const AddEmployeeFormContent: React.FC<AddEmployeeFormContentProps> = ({ onClose
                             <select
                                 id="status"
                                 value={formData.status}
-                                onChange={(e) => handleInputChange('status', e.target.value)}
+                                onChange={(e) => handleInputChange('status', e.target.value as Employee['status'])}
                                 className="w-full p-2 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                             >
                                 <option value="">Select status</option>

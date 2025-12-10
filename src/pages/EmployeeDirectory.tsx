@@ -1,13 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
 import DashboardLayout from '@/components/layout/DashboardLayout';
 import EmployeeTable from '@/components/EmployeeTable';
 import EmployeeEditForm from '@/components/EmployeeEditForm';
-import AddEmployeeForm from '@/components/AddEmployeeForm';
+// Removed inline AddEmployeeForm modal in favor of navigation to AddEmployee page
 import { Employee, User, accessConfigs, hasPermission } from '@/types/user';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Users,
   UserPlus,
@@ -25,8 +28,10 @@ const EmployeeDirectory = () => {
   const [filteredEmployees, setFilteredEmployees] = useState<Employee[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [isAddFormOpen, setAddFormOpen] = useState(false);
+  // Removed local add form modal state; we navigate to dedicated page instead
   const [editingEmployee, setEditingEmployee] = useState<Employee | null>(null);
+  const [viewColumns, setViewColumns] = useState<{ field: keyof Employee; label: string }[]>([]);
+  const [visibleColumns, setVisibleColumns] = useState<{ field: keyof Employee; label: string }[]>([]);
   
   // Role-based permissions
   const canCreateEmployees = hasPermission(user.role, 'employees', 'create');
@@ -83,6 +88,40 @@ const EmployeeDirectory = () => {
       fetchEmployees();
     }
   }, [token, toast]);
+
+  // Fetch role-based view columns (display labels) from API and initialize visibility
+  useEffect(() => {
+    const fetchViewColumns = async () => {
+      if (!token) return;
+      try {
+        const res = await fetch('http://localhost:8080/api/column-matrix/view-columns', {
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json'
+          }
+        });
+        if (!res.ok) throw new Error('Failed to fetch view columns');
+        const data = await res.json();
+        const cols = (data.columns || []).map((c: any) => ({
+          field: c.column_name as keyof Employee,
+          label: c.display_label as string,
+        }));
+        setViewColumns(cols);
+        setVisibleColumns(cols);
+      } catch (error) {
+        console.error('Error fetching view columns:', error);
+        // Fallback to accessConfigs visibleFields with formatted labels
+        const cfg = accessConfigs[user.role];
+        const fallback = cfg.visibleFields.map(f => ({
+          field: f,
+          label: String(f).replace(/_/g, ' ').replace(/\b\w/g, s => s.toUpperCase()),
+        }));
+        setViewColumns(fallback);
+        setVisibleColumns(fallback);
+      }
+    };
+    fetchViewColumns();
+  }, [token, user.role]);
 
   // Filter employees based on search term
   useEffect(() => {
@@ -164,18 +203,12 @@ const EmployeeDirectory = () => {
     }
   };
 
+  const navigate = useNavigate();
   const handleAddEmployee = () => {
-    setAddFormOpen(true);
+    navigate('/employees/add');
   };
 
-  const handleAddEmployeeSave = (newEmployee: Employee) => {
-    setEmployees(prev => [...prev, newEmployee]);
-    setAddFormOpen(false);
-    toast({
-      title: "Employee Added",
-      description: `${newEmployee.name} has been added successfully.`,
-    });
-  };
+  // Redirect-based add flow handled in AddEmployee page; removal of local save handler
 
   const convertToCSV = (data: Record<string, unknown>[]) => {
     if (!data.length) return '';
@@ -216,7 +249,7 @@ const EmployeeDirectory = () => {
 
     const shownData = filteredRows.map(emp => {
       const filteredEmp: Partial<Employee> = {};
-      config.visibleFields.forEach(field => {
+      visibleColumns.forEach(({ field }) => {
         assignKey(filteredEmp, field, emp[field]);
       });
       return filteredEmp;
@@ -287,6 +320,35 @@ const EmployeeDirectory = () => {
                   className="pl-10"
                 />
               </div>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="outline" className="flex items-center">
+                    <Filter className="mr-2 h-4 w-4" /> Columns
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-64">
+                  {viewColumns.map((col) => {
+                    const checked = !!visibleColumns.find(c => c.field === col.field);
+                    return (
+                      <DropdownMenuItem key={String(col.field)} className="flex items-center gap-2" onSelect={(e) => e.preventDefault()}>
+                        <Checkbox
+                          checked={checked}
+                          onCheckedChange={(val) => {
+                            setVisibleColumns(prev => {
+                              if (val) {
+                                return [...prev, col];
+                              } else {
+                                return prev.filter(c => c.field !== col.field);
+                              }
+                            });
+                          }}
+                        />
+                        <span className="text-sm">{col.label}</span>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
               <div className="flex items-center space-x-2 text-sm text-muted-foreground">
                 <Users className="h-4 w-4" />
                 <span>{filteredEmployees.length} of {employees.length} employees</span>
@@ -309,6 +371,7 @@ const EmployeeDirectory = () => {
               onEdit={handleEmployeeEdit}
               onView={handleEmployeeView}
               onDelete={canDeleteEmployees ? handleEmployeeDelete : undefined}
+              columns={visibleColumns}
             />
             {editingEmployee && (
               <EmployeeEditForm
@@ -320,13 +383,7 @@ const EmployeeDirectory = () => {
           </CardContent>
         </Card>
 
-        {/* Add Employee Form Modal */}
-        {isAddFormOpen && (
-          <AddEmployeeForm
-            onAdd={handleAddEmployeeSave}
-            onClose={() => setAddFormOpen(false)}
-          />
-        )}
+        {/* Add flow now navigates to dedicated AddEmployee page */}
       </div>
     </DashboardLayout>
   );

@@ -1,0 +1,57 @@
+DB Rename Plan (from Excel alignment)
+Schema: dbo
+
+Renames:
+- employee_core: BranchID -> branch_id
+  EXEC sp_rename 'dbo.employee_core.BranchID', 'branch_id', 'COLUMN';
+- employee_core: OfficeEmail -> office_email
+  EXEC sp_rename 'dbo.employee_core.OfficeEmail', 'office_email', 'COLUMN';
+- employee_insurance: FPGNo -> fpg_no
+  EXEC sp_rename 'dbo.employee_insurance.FPGNo', 'fpg_no', 'COLUMN';
+- employee_insurance: OWLEXANo -> owlexa_no
+  EXEC sp_rename 'dbo.employee_insurance.OWLEXANo', 'owlexa_no', 'COLUMN';
+- employee_core: MonthofBirthday -> month_of_birthday
+  EXEC sp_rename 'dbo.employee_core.MonthofBirthday', 'month_of_birthday', 'COLUMN';
+- employee_core: IDCARDMTI -> id_card_mti
+  EXEC sp_rename 'dbo.employee_core.IDCARDMTI', 'id_card_mti', 'COLUMN';
+- employee_bank: BankCode -> bank_code
+  EXEC sp_rename 'dbo.employee_bank.BankCode', 'bank_code', 'COLUMN';
+- employee_bank: ICBCBankAccountNo -> icbc_bank_account_no
+  EXEC sp_rename 'dbo.employee_bank.ICBCBankAccountNo', 'icbc_bank_account_no', 'COLUMN';
+- employee_travel: PassportExpiry -> passport_expiry
+  EXEC sp_rename 'dbo.employee_travel.PassportExpiry', 'passport_expiry', 'COLUMN';
+- employee_travel: KITASExpiry -> kitas_expiry
+  EXEC sp_rename 'dbo.employee_travel.KITASExpiry', 'kitas_expiry', 'COLUMN';
+- employee_travel: RPTKANo -> rptka_no
+  EXEC sp_rename 'dbo.employee_travel.RPTKANo', 'rptka_no', 'COLUMN';
+- employee_travel: RPTKAPosition -> rptka_position
+  EXEC sp_rename 'dbo.employee_travel.RPTKAPosition', 'rptka_position', 'COLUMN';
+- employee_travel: KITASAddress -> kitas_address
+  EXEC sp_rename 'dbo.employee_travel.KITASAddress', 'kitas_address', 'COLUMN';
+- employee_bank: ICBCUsername -> icbc_username
+  EXEC sp_rename 'dbo.employee_bank.ICBCUsername', 'icbc_username', 'COLUMN';
+- employee_checklist: KITASChecklist -> kitas_checklist
+  EXEC sp_rename 'dbo.employee_checklist.KITASChecklist', 'kitas_checklist', 'COLUMN';
+- employee_checklist: IMTAChecklist -> imta_checklist
+  EXEC sp_rename 'dbo.employee_checklist.IMTAChecklist', 'imta_checklist', 'COLUMN';
+- employee_checklist: RPTKAChecklist -> rptka_checklist
+  EXEC sp_rename 'dbo.employee_checklist.RPTKAChecklist', 'rptka_checklist', 'COLUMN';
+- employee_checklist: NPWPChecklist -> npwp_checklist
+  EXEC sp_rename 'dbo.employee_checklist.NPWPChecklist', 'npwp_checklist', 'COLUMN';
+- employee_checklist: BPJSKESChecklist -> bpjs_kes_checklist
+  EXEC sp_rename 'dbo.employee_checklist.BPJSKESChecklist', 'bpjs_kes_checklist', 'COLUMN';
+- employee_checklist: BPJSTKChecklist -> bpjs_tk_checklist
+  EXEC sp_rename 'dbo.employee_checklist.BPJSTKChecklist', 'bpjs_tk_checklist', 'COLUMN';
+- employee_checklist: BankChecklist -> bank_checklist
+  EXEC sp_rename 'dbo.employee_checklist.BankChecklist', 'bank_checklist', 'COLUMN';
+
+Additions (types/constraints TBD):
+- employee_bank, employee_contact, employee_core, employee_employment, employee_insurance, employee_onboard, employee_travel.employee_id | label='Emp. ID'
+- employee_employment.employment_status | label='Employment Status'
+- employee_insurance.social_insurance_no_alt | label='Social Insurance No (alt BPJS TK)'
+- employee_insurance.bpjs_kes_no_alt | label='BPJS Kesehatan No (alt BPJS KES)'
+- employee_employment.locality_status | label='Locality Status'
+- employee_travel.name_as_passport | label='Name as Pasport'
+- employee_travel.job_title_kitas | label='Job Tittle (Based on KITAS)'
+- employee_notes.note | label='Cek Document / Note'
+- employee_checklist.passport_checklist | label='Paspor (Checklist)'

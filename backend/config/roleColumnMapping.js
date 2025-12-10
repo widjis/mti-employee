@@ -16,7 +16,7 @@ const TEMPLATE_FIELDS = [
   'grade', 'position_grade', 'group_job_title', 'bank_name', 'account_name', 'account_no',
   'npwp', 'bpjs_tk', 'bpjs_kes', 'status_bpjs_kes', 'travel_in', 'travel_out',
   'terminated_date', 'terminated_type', 'terminated_reason', 'blacklist_mti', 'blacklist_imip',
-  'kitas_no', 'passport_no', 'status'
+  'kitas_no', 'passport_no', 'status', 'locality_status'
 ];
 
 // Column mapping from Excel headers to database fields
@@ -95,7 +95,8 @@ const COLUMN_MAPPING = {
   'Passport No': 'passport_no',
   
   // Status
-  'Status': 'status'
+  'Status': 'status',
+  'Locality Status': 'locality_status'
 };
 
 // Role-based column access configuration

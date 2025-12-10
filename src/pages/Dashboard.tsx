@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Users,
   UserPlus,
@@ -17,7 +18,8 @@ import {
   Upload,
   Download,
   Calendar,
-  Clock
+  Clock,
+  Info
 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -168,6 +170,61 @@ const Dashboard = () => {
     return csvRows.join('\n');
   };
 
+  // Aggregation helpers (client-side, handles nulls and variations)
+  const toKey = (val: unknown) => String(val ?? '').trim().toLowerCase();
+
+  const genderStats = React.useMemo(() => {
+    const maleKeys = new Set(['m', 'male', 'l']); // 'l' for 'laki-laki'
+    const femaleKeys = new Set(['f', 'female', 'p']); // 'p' for 'perempuan'
+    let male = 0, female = 0, unknown = 0;
+    employees.forEach(emp => {
+      const g = toKey(emp.gender);
+      if (!g) unknown++;
+      else if (maleKeys.has(g)) male++;
+      else if (femaleKeys.has(g)) female++;
+      else unknown++;
+    });
+    return { male, female, unknown };
+  }, [employees]);
+
+  const nationalityStats = React.useMemo(() => {
+    let indonesia = 0, expatriate = 0, unknown = 0;
+    employees.forEach(emp => {
+      const n = toKey(emp.nationality);
+      if (!n) unknown++;
+      else if (n.includes('indo')) indonesia++;
+      else expatriate++;
+    });
+    return { indonesia, expatriate, unknown };
+  }, [employees]);
+
+  const contractStats = React.useMemo(() => {
+    let permanent = 0, contract = 0, unknown = 0;
+    employees.forEach(emp => {
+      const s = toKey(emp.employment_status);
+      if (!s) unknown++;
+      else if (s.includes('contract')) contract++;
+      else if (s.includes('permanent') || s.includes('tetap')) permanent++;
+      else unknown++;
+    });
+    return { permanent, contract, unknown };
+  }, [employees]);
+
+  // Point of origin derivation: uses `point_of_origin` if available; otherwise falls back to unknown.
+  // Pending clarification for exact mapping rules.
+  const originStats = React.useMemo(() => {
+    let local = 0, nonLocal = 0, overseas = 0, unknown = 0;
+    employees.forEach(emp => {
+      const o = toKey(emp.point_of_origin);
+      if (!o) { unknown++; return; }
+      if (o.includes('local')) local++;
+      else if (o.includes('non') || o.includes('non-local')) nonLocal++;
+      else if (o.includes('overseas') || o.includes('luar')) overseas++;
+      else unknown++;
+    });
+    return { local, nonLocal, overseas, unknown };
+  }, [employees]);
+
   const currentUser = user;
   const allEmployees = employees;
 
@@ -218,7 +275,11 @@ const Dashboard = () => {
 
   // Calculate stats
   const totalEmployees = employees.length;
-  const activeEmployees = employees.filter(emp => emp.status === 'active').length;
+  const ACTIVE_STATUSES = ['active', 'probation', 'contract', 'intern'];
+  const activeEmployees = employees.filter(emp => {
+    const status = (emp.employment_status || '').toLowerCase();
+    return ACTIVE_STATUSES.includes(status);
+  }).length;
   const departments = [...new Set(employees.map(emp => emp.department))].length;
 
   if (isLoading) {
@@ -254,8 +315,8 @@ const Dashboard = () => {
         </div>
 
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          <Card>
+        <div className="grid grid-cols-12 gap-4">
+          <Card className="col-span-12 md:col-span-6 lg:col-span-4">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Total Employees</CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
@@ -268,7 +329,7 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="col-span-12 md:col-span-6 lg:col-span-4">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Departments</CardTitle>
               <Building className="h-4 w-4 text-muted-foreground" />
@@ -278,20 +339,150 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card>
+          <Card className="col-span-12 md:col-span-6 lg:col-span-4">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">New Hires</CardTitle>
               <UserPlus className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold">
-                {employees.filter(emp =>
-                  new Date(emp.first_join_date) > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
-                ).length}
+                {employees.filter(emp => {
+                  const jd = emp.join_date
+                    ? new Date(typeof emp.join_date === 'string' ? emp.join_date : emp.join_date.toISOString())
+                    : null;
+                  return jd ? jd > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) : false;
+                }).length}
               </div>
               <p className="text-xs text-muted-foreground">
                 Last 30 days
               </p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Demographics Cards */}
+        <div className="grid grid-cols-12 gap-4">
+          <Card className="col-span-12 md:col-span-6 lg:col-span-3">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Gender
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Counts by `gender` field (male/female; unknown included).
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between text-sm">
+                <span>Male</span>
+                <Badge variant="outline">{genderStats.male}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-2">
+                <span>Female</span>
+                <Badge variant="outline">{genderStats.female}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
+                <span>Unknown</span>
+                <span>{genderStats.unknown}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-12 md:col-span-6 lg:col-span-3">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Nationality
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Indonesia vs Expatriate derived from `nationality`.
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between text-sm">
+                <span>Indonesia</span>
+                <Badge variant="outline">{nationalityStats.indonesia}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-2">
+                <span>Expatriate</span>
+                <Badge variant="outline">{nationalityStats.expatriate}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
+                <span>Unknown</span>
+                <span>{nationalityStats.unknown}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-12 md:col-span-6 lg:col-span-3">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Contract Type
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Derived from `employment_status` (permanent/contract; unknown included).
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between text-sm">
+                <span>Permanent</span>
+                <Badge variant="outline">{contractStats.permanent}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-2">
+                <span>Contract</span>
+                <Badge variant="outline">{contractStats.contract}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
+                <span>Unknown</span>
+                <span>{contractStats.unknown}</span>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="col-span-12 md:col-span-6 lg:col-span-3">
+            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+              <CardTitle className="text-sm font-medium flex items-center gap-2">
+                Point of Origin
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Info className="h-4 w-4 text-muted-foreground" />
+                  </TooltipTrigger>
+                  <TooltipContent>
+                    Using `point_of_origin`; mapping rules pending clarification.
+                  </TooltipContent>
+                </Tooltip>
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex items-center justify-between text-sm">
+                <span>Local</span>
+                <Badge variant="outline">{originStats.local}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-2">
+                <span>Non-Local</span>
+                <Badge variant="outline">{originStats.nonLocal}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-sm mt-2">
+                <span>Overseas</span>
+                <Badge variant="outline">{originStats.overseas}</Badge>
+              </div>
+              <div className="flex items-center justify-between text-xs text-muted-foreground mt-2">
+                <span>Unknown</span>
+                <span>{originStats.unknown}</span>
+              </div>
             </CardContent>
           </Card>
         </div>

@@ -67,7 +67,7 @@ const AddEmployee = () => {
               size="sm"
             >
               <ArrowLeft className="mr-2 h-4 w-4" />
-              Back
+              Back to Directory
             </Button>
             <div>
               <h2 className="text-3xl font-bold text-foreground flex items-center">

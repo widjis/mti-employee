@@ -1,0 +1,637 @@
+{
+  "file": "backend/scripts/Comben Master Data Column Assignment.xlsx",
+  "sheet": "DB Schema",
+  "schema": "dbo",
+  "report": [
+    {
+      "table_name": "employee_insurance",
+      "column_name": "insurance_endorsement",
+      "display_label": "Insurance (Endorsment)",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Insurance (Endorsment)",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_insurance",
+      "column_name": "insurance_owlexa",
+      "display_label": "Insurance Card Owlexa",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Insurance Card Owlexa",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_insurance",
+      "column_name": "insurance_fpg",
+      "display_label": "Insurance Card FPG",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Insurance Card FPG",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_bank",
+      "column_name": "employee_id",
+      "display_label": "Emp. ID",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Emp. ID",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_contact",
+      "column_name": "employee_id",
+      "display_label": "Emp. ID",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Emp. ID",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "employee_id",
+      "display_label": "Emp. ID",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Emp. ID",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "employee_id",
+      "display_label": "Emp. ID",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Emp. ID",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_insurance",
+      "column_name": "employee_id",
+      "display_label": "Emp. ID",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Emp. ID",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_onboard",
+      "column_name": "employee_id",
+      "display_label": "Emp. ID",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Emp. ID",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_travel",
+      "column_name": "employee_id",
+      "display_label": "Emp. ID",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Emp. ID",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "imip_id",
+      "display_label": "IMIP ID",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "IMIP ID",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "name",
+      "display_label": "Employee Name",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Employee Name",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "gender",
+      "display_label": "Gender",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Gender",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "place_of_birth",
+      "display_label": "Place of Birth",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Place of Birth",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "date_of_birth",
+      "display_label": "Date of Birth",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Date of Birth",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "age",
+      "display_label": "Age",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Age",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "marital_status",
+      "display_label": "Marital Status",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Marital Status",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "tax_status",
+      "display_label": "Tax Status",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Tax Status",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_contact",
+      "column_name": "spouse_name",
+      "display_label": "Spouse Name",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Spouse Name",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_contact",
+      "column_name": "child_name_1",
+      "display_label": "Child Name 1",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Child Name 1",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_contact",
+      "column_name": "child_name_2",
+      "display_label": "Child Name 2",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Child Name 2",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_contact",
+      "column_name": "child_name_3",
+      "display_label": "Child Name 3",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Child Name 3",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "religion",
+      "display_label": "Religion",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Religion",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "nationality",
+      "display_label": "Nationality",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Nationality",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "blood_type",
+      "display_label": "Blood Type",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Blood Type",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_contact",
+      "column_name": "phone_number",
+      "display_label": "Mobile Phone",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Mobile Phone",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_contact",
+      "column_name": "emergency_contact_name",
+      "display_label": "Emergency Contact Name",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Emergency Contact Name",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_contact",
+      "column_name": "emergency_contact_phone",
+      "display_label": "Emergency Contact Phone",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Emergency Contact Phone",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "kartu_keluarga_no",
+      "display_label": "Kartu Keluarga No",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Kartu Keluarga No",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "ktp_no",
+      "display_label": "KTP No",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "KTP No",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_contact",
+      "column_name": "address",
+      "display_label": "KTP Address",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "KTP Address",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_contact",
+      "column_name": "city",
+      "display_label": "KTP City",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "KTP City",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_onboard",
+      "column_name": "point_of_hire",
+      "display_label": "Poin of Hire",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Poin of Hire",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_onboard",
+      "column_name": "point_of_origin",
+      "display_label": "Poin of Origin",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Poin of Origin",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "education",
+      "display_label": "Education",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Education",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_onboard",
+      "column_name": "schedule_type",
+      "display_label": "Schedule Type",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Schedule Type",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_onboard",
+      "column_name": "first_join_date_merdeka",
+      "display_label": "First Join Date (Merdeka Group)",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "First Join Date (Merdeka Group)",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_onboard",
+      "column_name": "transfer_merdeka",
+      "display_label": "Transfer Merdeka Group",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Transfer Merdeka Group",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_onboard",
+      "column_name": "first_join_date",
+      "display_label": "First Join Date",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "First Join Date",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_onboard",
+      "column_name": "join_date",
+      "display_label": "Join Date",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Join Date",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_onboard",
+      "column_name": "employment_status",
+      "display_label": "Employment Status",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Employment Status",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_onboard",
+      "column_name": "end_contract",
+      "display_label": "End Contract",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "End Contract",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_onboard",
+      "column_name": "years_in_service",
+      "display_label": "Years in Service",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Years in Service",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "company_office",
+      "display_label": "Company Office",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Company Office",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "work_location",
+      "display_label": "Work Location",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Work Location",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "division",
+      "display_label": "Division",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Division",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "department",
+      "display_label": "Department",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Department",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "section",
+      "display_label": "Section",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Section",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "direct_report",
+      "display_label": "Direct Report",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Direct Report",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "job_title",
+      "display_label": "Job Title",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Job Title",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "grade",
+      "display_label": "Grade",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Grade",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "position_grade",
+      "display_label": "Position Grade",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Position Grade",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "group_job_title",
+      "display_label": "Group Job Title",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Group Job Title",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_bank",
+      "column_name": "bank_name",
+      "display_label": "Bank Name",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Bank Name",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_bank",
+      "column_name": "account_name",
+      "display_label": "Account Name",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Account Name",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_bank",
+      "column_name": "account_no",
+      "display_label": "Account No",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Account No",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_core",
+      "column_name": "npwp",
+      "display_label": "NPWP",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "NPWP",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_insurance",
+      "column_name": "bpjs_tk",
+      "display_label": "BPJS TK No",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "BPJS TK No",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_insurance",
+      "column_name": "bpjs_kes",
+      "display_label": "BPJS KES No",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "BPJS KES No",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_insurance",
+      "column_name": "status_bpjs_kes",
+      "display_label": "STATUS BPJS Kesehatan",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "STATUS BPJS Kesehatan",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_travel",
+      "column_name": "kitas_no",
+      "display_label": "KITAS NO",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "KITAS NO",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_travel",
+      "column_name": "passport_no",
+      "display_label": "PASSPORT ID",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "PASSPORT ID",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_travel",
+      "column_name": "travel_in",
+      "display_label": "Travel In",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Travel In",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_travel",
+      "column_name": "travel_out",
+      "display_label": "Travel Out",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Travel Out",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "terminated_date",
+      "display_label": "Terminated Date",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Terminated Date",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "terminated_type",
+      "display_label": "Terminated Type",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Terminated Type",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "terminated_reason",
+      "display_label": "Terminated Reason",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Terminated Reason",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "blacklist_mti",
+      "display_label": "Black List MTI",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Black List MTI",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_employment",
+      "column_name": "blacklist_imip",
+      "display_label": "Black List IMIP",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Black List IMIP",
+      "labelMatch": true
+    },
+    {
+      "table_name": "employee_contact",
+      "column_name": "email",
+      "display_label": "Personal email",
+      "existsInTable": true,
+      "existsInCatalog": true,
+      "catalogLabel": "Personal email",
+      "labelMatch": true
+    }
+  ]
+}

@@ -18,6 +18,7 @@ interface EmployeeTableProps {
   onEdit?: (employee: Employee) => void;
   onView?: (employee: Employee) => void;
   onDelete?: (employeeId: string) => void;
+  columns?: { field: keyof Employee; label: string }[];
 }
 
 const dateFields: (keyof Employee)[] = [
@@ -85,6 +86,7 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
   onEdit,
   onView,
   onDelete,
+  columns,
 }) => {
   const { user } = useAuth();
   const userRole = user?.role as User['role'];
@@ -96,9 +98,11 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
     direction: null,
   });
   const defaultColumnWidth = 150;
+  const effectiveFields = (columns?.map(c => c.field) ?? config.visibleFields) as (keyof Employee)[];
+  const labelMap = new Map<string, string>((columns ?? []).map(c => [String(c.field), c.label]));
   const [columnsWidth, setColumnsWidth] = useState<Record<string, number>>(() =>
-    config.visibleFields.reduce((acc, field) => {
-      acc[field] = defaultColumnWidth;
+    effectiveFields.reduce((acc, field) => {
+      acc[String(field)] = defaultColumnWidth;
       return acc;
     }, {} as Record<string, number>)
   );
@@ -136,13 +140,13 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
   // Filter by global search term
   const filteredEmployees = useMemo(() => {
     return filteredByRole.filter(employee =>
-      config.visibleFields.some(field => {
+      effectiveFields.some(field => {
         const val = employee[field];
         if (val === null || val === undefined) return false;
         return String(val).toLowerCase().includes(searchTerm.toLowerCase());
       })
     );
-  }, [filteredByRole, searchTerm, config.visibleFields]);
+  }, [filteredByRole, searchTerm, effectiveFields]);
 
   // Sort filtered employees by current sort config
   const sortedEmployees = useMemo(() => {
@@ -192,10 +196,10 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
           <thead>
             <tr>
               <th style={{ width: 80 }}>{userRole === 'admin' ? 'ACTIONS' : null}</th>
-              {config.visibleFields.map(field => (
+              {effectiveFields.map(field => (
                 <Resizable
-                  key={field}
-                  width={columnsWidth[field]}
+                  key={String(field)}
+                  width={columnsWidth[String(field)]}
                   height={0}
                   handle={
                     <span
@@ -213,14 +217,14 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
                       }}
                     />
                   }
-                  onResize={handleResize(field)}
+                  onResize={handleResize(String(field))}
                   draggableOpts={{ enableUserSelectHack: false }}
                 >
                   <th
                     onClick={() => requestSort(field)}
                     style={{
-                      width: columnsWidth[field],
-                      maxWidth: columnsWidth[field],
+                      width: columnsWidth[String(field)],
+                      maxWidth: columnsWidth[String(field)],
                       position: 'relative',
                       userSelect: 'none',
                       whiteSpace: 'normal',
@@ -233,7 +237,7 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
                     }}
                   >
                     <div className="flex justify-between items-center select-none">
-                      <span>{field.replace(/_/g, ' ').toUpperCase()}</span>
+                      <span>{labelMap.get(String(field)) ?? String(field).replace(/_/g, ' ').toUpperCase()}</span>
                       <span>{getSortIndicator(field)}</span>
                     </div>
                   </th>
@@ -270,11 +274,11 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
                     </DropdownMenu>
                   )}
                 </td>
-                {config.visibleFields.map(field => (
+                {effectiveFields.map(field => (
                   <td
-                    key={field}
+                    key={String(field)}
                     className="border px-6 py-4 align-middle break-words whitespace-normal"
-                    style={{ width: columnsWidth[field], maxWidth: columnsWidth[field] }}
+                    style={{ width: columnsWidth[String(field)], maxWidth: columnsWidth[String(field)] }}
                   >
                     {dateFields.includes(field)
                       ? formatDate(employee[field])
