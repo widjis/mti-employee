@@ -1,6 +1,6 @@
 import React from 'react';
 import { useAuth } from '@/context/AuthContext';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+// DashboardLayout is provided via nested routing; remove local wrapper
 import ExcelUpload from '@/components/ExcelUpload';
 import { hasPermission } from '@/types/user';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -23,14 +23,14 @@ const ImportEmployees: React.FC = () => {
     });
 
     const link = document.createElement('a');
-    link.href = './template_data.xlsx';
-    link.download = 'employee_template.xlsx';
+    // Use generated template from backend based on default profile
+    link.href = '/api/employees/templates?profile=indonesia_active';
+    link.download = 'employee_template_indonesia_active.xlsx';
     link.click();
   };
 
   if (!canImportData) {
     return (
-      <DashboardLayout>
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <div>
@@ -48,12 +48,10 @@ const ImportEmployees: React.FC = () => {
             </AlertDescription>
           </Alert>
         </div>
-      </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -148,7 +146,6 @@ const ImportEmployees: React.FC = () => {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
 };
 

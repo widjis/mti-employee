@@ -11,7 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { ROLE_PERMISSIONS, type User, type RolePermissions, type Permission } from '@/types/user';
 import { Shield, Users, FileText, Settings, Save, RotateCcw, Filter, Table as TableIcon } from 'lucide-react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+// DashboardLayout now provided via nested routing; remove local wrapper
+import { api } from '@/lib/apiClient';
 
 const RoleMatrix: React.FC = () => {
   const { toast } = useToast();
@@ -35,6 +36,38 @@ const RoleMatrix: React.FC = () => {
 
   const roles = Object.keys(permissions) as User['role'][];
 
+  // Load employees module role-permissions from backend
+  useEffect(() => {
+    const loadMatrix = async () => {
+      try {
+        const data = await api.get<{ roles: Array<{ role_name: string; permissions: string[] }> }>(
+          '/api/rbac/role-permissions?module=employees'
+        );
+        const serverRoles = data.roles || [];
+
+        setPermissions(prev => {
+          const next = { ...prev };
+          for (const { role_name, permissions: perms } of serverRoles) {
+            const roleKey = role_name as User['role'];
+            if (!next[roleKey]) continue;
+            const emp = { ...next[roleKey].employees };
+            emp.read = perms.includes('employees.view');
+            emp.create = perms.includes('employees.create');
+            emp.update = perms.includes('employees.edit');
+            emp.delete = perms.includes('employees.delete');
+            next[roleKey] = { ...next[roleKey], employees: emp };
+          }
+          return next;
+        });
+        setHasChanges(false);
+      } catch (error) {
+        console.error('Failed to load role-permissions:', error);
+        toast({ title: 'Warning', description: 'Failed to load role-permissions from server.', variant: 'destructive' });
+      }
+    };
+    loadMatrix();
+  }, [toast]);
+
   const handlePermissionChange = (
     role: User['role'],
     module: keyof RolePermissions,
@@ -56,12 +89,26 @@ const RoleMatrix: React.FC = () => {
 
   const handleSave = async () => {
     try {
-      // Here you would typically send the permissions to your backend
-      // await updateRolePermissions(permissions);
+      const payload = {
+        roles: roles.map(role => {
+          if (role === 'superadmin') {
+            return { role_name: role, permissions: [] };
+          }
+          const emp = permissions[role].employees;
+          const perms: string[] = [];
+          if (emp.read) perms.push('employees.view');
+          if (emp.create) perms.push('employees.create');
+          if (emp.update) perms.push('employees.edit');
+          if (emp.delete) perms.push('employees.delete');
+          return { role_name: role, permissions: perms };
+        })
+      };
+
+      await api.put('/api/rbac/role-permissions?module=employees', payload);
       
       toast({
         title: "Success",
-        description: "Role permissions updated successfully.",
+        description: "Employee module permissions updated successfully.",
       });
       setHasChanges(false);
     } catch (error) {
@@ -95,7 +142,6 @@ const RoleMatrix: React.FC = () => {
   };
 
   return (
-    <DashboardLayout>
       <div className="container mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
         <div>
@@ -291,7 +337,6 @@ const RoleMatrix: React.FC = () => {
         </CardContent>
       </Card>
       </div>
-    </DashboardLayout>
   );
 };
 
@@ -346,12 +391,15 @@ const ColumnAccessMatrix: React.FC = () => {
   useEffect(() => {
     const loadInitial = async () => {
       try {
-        const [rRes, cRes] = await Promise.all([
-          fetch('/api/column-matrix/roles'),
-          fetch('/api/column-matrix/columns')
+        type RolesResponse = { success: boolean; roles: RoleItem[] };
+        type ColumnsResponse = { success: boolean; columns: ColumnCatalog[] };
+        const [rJson, cJson] = await Promise.all<[
+          Promise<RolesResponse>,
+          Promise<ColumnsResponse>
+        ]>([
+          api.get<RolesResponse>('/api/column-matrix/roles'),
+          api.get<ColumnsResponse>('/api/column-matrix/columns')
         ]);
-        const rJson = await rRes.json();
-        const cJson = await cRes.json();
         if (rJson.success) setRoles(rJson.roles);
         if (cJson.success) setColumns(cJson.columns);
         if (rJson.roles?.length && !selectedRoleId) setSelectedRoleId(String(rJson.roles[0].role_id));
@@ -367,8 +415,8 @@ const ColumnAccessMatrix: React.FC = () => {
     const loadAccess = async () => {
       if (!selectedRoleId) return;
       try {
-        const res = await fetch(`/api/column-matrix/access/${selectedRoleId}`);
-        const json = await res.json();
+        type AccessResponse = { success: boolean; items: AccessItem[] };
+        const json = await api.get<AccessResponse>(`/api/column-matrix/access/${selectedRoleId}`);
         if (json.success) {
           setAccessItems(json.items);
           setChangedAccess({});
@@ -420,23 +468,21 @@ const ColumnAccessMatrix: React.FC = () => {
         export_allowed: normalizeBool(item.export_allowed),
       }));
       if (accessPayload.length) {
-        const res = await fetch(`/api/column-matrix/access/${selectedRoleId}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ items: accessPayload })
-        });
-        const json = await res.json();
+        type UpdateResponse = { success: boolean; message?: string };
+        const json = await api.put<UpdateResponse>(
+          `/api/column-matrix/access/${selectedRoleId}`,
+          { items: accessPayload }
+        );
         if (!json.success) throw new Error(json.message || 'Failed to update access');
       }
 
       const columnPayload = Object.entries(changedColumns);
       for (const [colId, patch] of columnPayload) {
-        const res = await fetch(`/api/column-matrix/column/${colId}`, {
+        type UpdateResponse = { success: boolean; message?: string };
+        const json = await api.fetch<UpdateResponse>(`/api/column-matrix/column/${colId}`, {
           method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(patch)
         });
-        const json = await res.json();
         if (!json.success) throw new Error(json.message || 'Failed to update column');
       }
 

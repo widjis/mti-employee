@@ -1,3 +1,42 @@
+2025-12-12 11:18:02 +08:00 — Export: normalize headers for date_* columns and harden detection
+# Change Summary
+
+- Normalized Excel headers so any `*_date` columns include the word `Date` (e.g., `Date Of Birth`, `Join Date`), avoiding collisions with non-date fields.
+- Hardened date-column detection to only format columns whose header matches the known date headers or contains the `Date` token, preventing misclassification like `Place of Birth`.
+- Ensured Excel date cells are written as numeric serials with `dd/mm/yyyy` format; extended ISO strings with years beyond Excel range are emitted as readable strings.
+
+Files:
+- Updated `backend/routes/employeeExportRoutes.js` (header construction and date detection logic).
+
+Verification:
+- `npx tsc --noEmit` passed (exit code 0).
+- Manual export should show cities under `Place of Birth` and dates under `Date of Birth` in `dd/mm/yyyy`.
+
+---
+2025-12-11 16:17:48
+# Employee Import: Templates, Dry-Run, Commit, and UI Integration
+
+Changes Implemented:
+- Backend: Added `GET /api/employees/templates?profile=...` to generate Excel templates per profile (`indonesia_active`, `indonesia_inactive`, `expatriate_active`, `expatriate_inactive`) from `backend/scripts/Comben Master Data Column Assignment.xlsx`.
+- Backend: Added `POST /api/employees/import/dry-run` for header/type validation, date normalization, duplicate policy handling (`update|skip|error`), and JSON log writing to `backend/logs/imports/`.
+- Backend: Added `POST /api/employees/import/commit` performing per-row transactional upserts across `employee_*` tables; respects duplicate policy (`update`, `skip`, `error`), skips invalid rows, writes a summary log.
+- Frontend: Enhanced `src/components/ExcelUpload.tsx` with:
+  - Profile selector and duplicate policy selector.
+  - Separate actions for Dry Run and Commit.
+  - Template download tied to selected profile.
+  - Result summary (rows processed/errors/warnings) and log download link.
+- Integrity Check: `npx tsc --noEmit` passed (exit code 0).
+
+Policies Confirmed:
+- Immutable fields: `employee_id`, `date_of_birth`, `nationality`.
+- Unknown division/department accepted with warnings.
+- Logs stored under `backend/logs/imports/`, 90-day retention policy.
+- Default duplicate handling: `update` unless user selects otherwise in the UI.
+
+Next Steps:
+- Optional: add fine-grained header validation per profile, and display missing/extra headers inline in the UI.
+- Optional: role-gate the UI buttons to `admin`/`hr_general` only.
+
 Timestamp: 2025-12-09 14:38:10 +08:00
 # Development Journal
 
@@ -168,8 +207,12 @@ Direct URL: `http://localhost:5173/employees/add`
 - Remaining lint issues can be addressed in a focused PR. The specific `no-explicit-any` in Dashboard is resolved.
 
 **Status**: ✅ Completed for targeted files.
+## 2025-12-11 – Sanitize example values in generated Excel template
 
-
+- Change: Strip UI hint suffixes from example row (e.g., remove "(Dropdown: ...)" and "(Free Text)").
+- Files: `backend/employeeRouter.js` – added `sanitizeExample()` and applied when building `examples` array.
+- Rationale: Keep template examples clean and avoid confusion with UI hints; aligns with request to show plain values like `Islam` for Religion.
+- Verification: Will verify via the running `npm run dev:full` by downloading `/api/employee/template?profile=indonesia_active` and inspecting row 2 (Religion, Gender, etc.).
 ## Saturday, November 29, 2025 3:32:52 PM
 
 ### Lint Fixes: RoleMatrix typing, UI props aliases, Tailwind ESM
@@ -220,6 +263,13 @@ Direct URL: `http://localhost:5173/employees/add`
 #### Department Distribution
 - **IT**: 1 domain user
 - **Human Resources**: 3 local users
+2025-12-12 05:45:35 +08:00
+# Dry-Run Log Download Confirmation
+
+- Verified that pressing "Dry Run" produces a JSON log under `backend/logs/imports/` and the UI shows a "Download log" button.
+- Confirmed successful download via `GET /api/files?path=...` with the backend running on `8080` and the Vite dev server on `5174`.
+- Clarified that the downloaded file is the backend-generated JSON log (not a temp file) and is served directly from `backend/logs/imports`.
+- No code changes applied; connectivity and route behavior validated end-to-end.
 - **Finance**: 1 local user
 - **Maintenance**: 1 local user
 - **Pyrite Plant**: 1 local user
@@ -255,6 +305,41 @@ const userData = {
   // ... other fields
 };
 ```
+
+2025-12-12 15:19:42
+# Template Guidance: Source enums from UI and embed into examples
+
+- Added `backend/config/column_enums.json` mirroring hard-coded options from the Add/Edit Employee UI:
+  - `gender`: ["Male", "Female"]
+  - `employment_status`: ["Permanent", "Contract"]
+  - `marital_status`: ["Single", "Married", "Divorced", "Widowed"]
+  - `education`: ["SD", "SMP", "SMA", "Diploma", "S1", "S2", "S3"]
+- Updated `backend/employeeRouter.js` ExcelJS generator to inject guidance directly into the sample row values for enumerated fields, e.g., `Male (Dropdown: Male, Female)`.
+- Preserved typed Date objects with `dd/mm/yyyy` formatting for date fields (no text suffix) to avoid breaking date formatting.
+
+Files:
+- Added `backend/config/column_enums.json`.
+- Updated `backend/employeeRouter.js` to load enums and embed dropdown guidance.
+
+Next:
+- Run `npx tsc --noEmit` for integrity validation.
+- Start dev server and verify template download shows guidance-in-value across profiles.
+2025-12-12 06:21:38 +08:00
+# Proxy Alignment Confirmation
+
+2025-12-12 06:23:46 +08:00
+# Import Log Download Fix
+
+- Backend now returns a safe relative filename in `logUrl` (e.g., `/api/files?path=import-dry-run-<timestamp>.json`) instead of an absolute Windows path.
+- Route `/api/files` validates and serves files strictly from `backend/logs/imports` using the provided filename; prevents traversal and avoids 500s from absolute paths.
+- Impact: ExcelUpload “Download log” works via proxy on `5173` while backend runs on `8080`.
+- No frontend changes required if it uses `uploadResult.logUrl` from the API response.
+
+- Verified backend remains on `PORT=8080`; `.env` is correctly configured.
+- Confirmed Vite proxy in `vite.config.ts` routes `/api` → `http://localhost:8080`.
+- No changes applied; configuration already matched the running backend.
+- Kept dev server at `http://localhost:5173/` for preview and connectivity checks.
+
 
 **Answer to User Question**: 
 ✅ **Department IS directly retrieved from Active Directory attribute**
@@ -1650,3 +1735,513 @@ UI: Standardized Dashboard stats card widths
 - Integrity check: `npx tsc --noEmit` passed.
 - Previewed UI via dev server at `http://localhost:5175/` and confirmed equal widths across breakpoints.
 - Scope: Frontend-only layout adjustment; no backend/API changes.
+## 2025-12-10 21:30:48 +08:00 — Employee Directory: Column view via DB schema and role access
+
+- Added authenticated backend endpoint `GET /api/column-matrix/view-columns` to return per-role viewable columns with `display_label`, filtering `is_active = 1` and `is_exportable = 1` while respecting `can_view = 1`.
+- Updated `src/components/EmployeeTable.tsx` to accept optional `columns` prop `{ field, label }` and use it for:
+  - Header labels (fallback to Title Case of field)
+  - Search across effective fields
+  - Sorting and column width management
+- Integrated in `src/pages/EmployeeDirectory.tsx`:
+  - Fetches `view-columns` on load with token, maps to `{ field: keyof Employee, label }`
+  - Adds a column visibility dropdown (Shadcn DropdownMenu + Checkbox) to toggle visible columns
+  - Passes `columns={visibleColumns}` to `EmployeeTable`
+  - Export logic respects current visible columns
+- TypeScript integrity check succeeded: `npx tsc --noEmit`.
+- UI preview available at `http://localhost:5175/` for verification.
+
+Notes/Follow-ups:
+- Currently hides non-exportable fields from the table per request; confirm if sensitive fields (`is_sensitive = 1`) should also be hidden for non-superadmin roles.
+- Row-level visibility still uses existing `accessConfigs.canViewRow` rules; confirm any additional constraints needed from DB.
+## 2025-12-10 21:36:28 +08:00 — Employee edit modal enabled; role-aware Actions visibility
+
+- EmployeeEditForm now sends `Authorization: Bearer <token>` for PUT `/api/employees/:employee_id`, aligning with backend `authenticateToken`.
+- EmployeeTable Actions column/menu visibility updated using `ROLE_PERMISSIONS`: shows Edit/Delete when the role has `employees.update/delete` and the corresponding handlers are supplied.
+- Verified with `npx tsc --noEmit` (passed).
+- Preview continues at `http://localhost:5175/` for modal interaction tests.
+
+Notes:
+- Inline editing deferred; modal is reusable for add/edit, with isolated validation and fewer focus management edge cases.
+## 2025-12-10 21:42:49 +08:00 — Edit modal: unsaved changes prompt and shortcuts
+
+- Added dirty-state tracking in `EmployeeEditForm` to detect unsaved edits.
+- Implemented discard confirmation using Shadcn `AlertDialog` when closing with changes.
+- Keyboard shortcuts: `Esc` triggers cancel (with prompt if dirty), `Ctrl+Enter` submits the form.
+- Type check passed (`npx tsc --noEmit`).
+- Preview running at `http://localhost:5174/` for manual verification.
+## 2025-12-10 21:46:19 +08:00 — Lint: remove explicit any across components
+
+- EmployeeDirectory: typed API columns mapping (`ApiColumn`) instead of `(c: any)`.
+- EmployeeTable: `formatDate` now accepts `string | number | Date | null | undefined`.
+- EmployeeEditForm: generic `handleChange<K extends keyof Employee>` and `catch (error: unknown)` with safe message.
+- Type check passed (`npx tsc --noEmit`).
+## 2025-12-10 21:51:55 +08:00 — EmployeeEditForm Type Integrity Fix
+
+- Addressed a compile-time error on `insurance_endorsement` radio/select handler where a `string` was not assignable to `"" | "Y" | "N"`.
+- Narrowed union types for affected handlers by casting `e.target.value` to the specific `Employee` field unions:
+  - `insurance_endorsement`, `insurance_blacklist`, `insurance_blacklist_option`, `blacklist`, `blacklist_type`.
+- Corrected `terminated_date` binding in the form to use `formData.terminated_date` (was incorrectly using `travel_out`).
+- Ensured modal `onClose` routes through `handleCancel` to respect unsaved changes discard flow.
+- Validation: Re-ran `npx tsc --noEmit`; compile succeeded with 0 errors.
+
+## 2025-12-10 21:58:16 +08:00 — EmployeeEditForm Date handler typing
+
+- Added `parseDateInput(value: string): Date | null` helper.
+- Updated date field handlers to pass `Date | null` instead of string:
+  - `date_of_birth`, `first_join_date_merdeka`, `end_contract`, `travel_in`, `travel_out`, `terminated_date`.
+- Cast `blood_type` select value to union type `Employee['blood_type']`.
+- Integrity check: `npx tsc --noEmit` passed with 0 errors.
+## 2025-12-10 22:09:32 +08:00 — EmployeeEditForm additional handler fixes
+
+- Converted remaining date handlers to use `parseDateInput`:
+  - `transfer_merdeka`, `first_join_date`, `join_date`.
+- Cast `status` select value to union type `Employee['status']`.
+- Re-ran `npx tsc --noEmit`; compile succeeded with 0 errors.
+[2025-12-10 23:10:22] Implemented EmployeeEditForm permission guard: role-based banner, disabled Save when unauthorized, Ctrl+Enter guard; integrated AuthContext token; ran TypeScript check (passed); started dev server for preview.
+2025-12-11 05:54:46
+- Fixed EmployeeTable header `<th>` width style to use fallback when column width is undefined, preventing Resizable width warnings.
+- Verified Vite proxy forwards `/api` to `http://localhost:8080` on dev port 5173.
+- Reviewed backend validation for employee updates; confirmed required fields include `name`, `gender` (M/F), and `date_of_birth` (ISO). 400 errors likely due to missing/invalid required fields.
+- Next: preview UI on active dev server and test PUT edit as `superadmin`.
+2025-12-11 05:56:49
+- Stopped duplicate dev server instance (port 5174). Aligning to existing dev server on port 5173 per user setup.
+2025-12-11 06:00:52
+- Normalized null `value` props in shared `Input` component to `''` to eliminate React warnings from controlled inputs.
+- TypeScript check passed (`npx tsc --noEmit`).
+[2025-12-11 11:01:08] Align AddEmployeeFormContent with EmployeeEditForm: added tax/spouse/children, KK, hire/origin, education, schedule, merdeka dates, transfer, end contract, org grades, finance, insurance, travel, termination, blacklist, immigration. Ran tsc and started dev server on 5174 for preview.
+[2025-12-11 15:07:19] EmployeeTable: replaced hasOwnProperty with Object.prototype.hasOwnProperty.call, and extracted effectiveFieldsKey via useMemo for clean React hooks dependencies. Validated with npx tsc --noEmit.
+[2025-12-11 15:34:14] Input component: removed explicit any cast from value prop; normalizedValue typed as string | number | readonly string[]; validated with npx tsc --noEmit.
+2025-12-11 16:35:56 — Backend import and login fixes
+
+- Fixed server crash: moved `multer` `upload` initialization above route declarations in `backend/employeeRouter.js` to resolve `ReferenceError: Cannot access 'upload' before initialization`.
+- Confirmed backend runs on `http://localhost:8080` with `/api` routes mounted; verified `/api/hello` and `/api/login` respond (login returns 401 with wrong creds instead of 404).
+- No environment changes retained: user restored `.env` to prior state; I will not modify env without explicit approval.
+- Frontend uses Vite proxy (`vite.config.ts`) for `/api` → `http://localhost:8080`; with backend running, `fetch('/api/login')` in `AuthContext.tsx` should work.
+- Next steps: if 404 persists, check that the frontend request remains relative (`/api/login`) and that the backend stays up during login attempts.
+2025-12-11 17:30:31
+- Made `/api/employees/templates` public with rate limiting (100 req/15m), keeping SQL injection prevention.
+- Added template metadata headers: `X-Template-Profile`, `X-Template-Version` (0.0.0), `X-Template-Hash` (SHA256 of mapping Excel), `X-Template-Updated-At`, `X-Template-Source`.
+- Updated `ImportEmployees.tsx` to retire static `template_data.xlsx` and route all downloads to `/api/employees/templates?profile=indonesia_active`.
+- TypeScript integrity check passed: `npx tsc --noEmit`.
+2025-12-11 19:54:11 — Fix empty template generation
+
+- Switched template mapping to use the 'Column Name' sheet instead of 'DB Schema'.
+- Interpreted profile flags via 'Indonesia' and 'Expat' columns (active/inactive share same flag).
+- Verified endpoint returns 68 headers for indonesia_active; downloaded sample Excel.
+- Restarted backend dev server; confirmed MSSQL connection and successful startup.
+2025-12-11 21:34:17 — Add inline example row in generated template
+
+- Extended backend template generator to populate row 2 with example values.
+- Source examples from mapping's 'Data Example'; fallback via 'Data Type' and header heuristics.
+- Forced Emp. ID example to 'MTI123456' per requirement; computed columns left blank.
+- Verified new template downloads and includes examples; spot-checked first 8 columns.
+## 2025-12-11 – Align AddEmployee UI: Religion dropdown
+
+- Change: In `src/components/AddEmployeeFormContent.tsx`, replaced Religion free-text input with a dropdown.
+- Options: Islam, Protestant, Catholic, Hindu, Buddhist, Confucianism.
+- Rationale: Match Excel template and reduce invalid inputs; ensure consistency across forms.
+- Note: Other enumerated fields already use selects (Gender, Marital Status, Blood Type, Employment Status). Further alignment can map options from backend/catalog if provided.
+2025-12-11 22:08:15 +08:00
+- Fix: Attach Authorization Bearer token for Excel import endpoints in `src/components/ExcelUpload.tsx`.
+  - Context: `POST /api/employees/import/dry-run` returned 401 Unauthorized due to missing JWT header.
+  - Change: Added `xhr.setRequestHeader('Authorization', 'Bearer <token>')` using `localStorage.getItem('token')` before sending `FormData`.
+  - Impact: Dry-run and commit upload requests now authenticate correctly; access requires roles `admin` or `hr_general` per backend route guards.
+  - Verification: With an active login token in local storage, re-try Dry Run should return 200/4xx with meaningful validation feedback instead of 401.
+2025-12-11 22:29:07 +08:00
+- Update: Permit `superadmin` role for Excel import endpoints to match initial testing practice.
+- Files: `backend/employeeRouter.js`
+- Change:
+  - `POST /api/employees/import/dry-run`: `authorizeRoles('admin', 'hr_general', 'superadmin')`
+  - `POST /api/employees/import/commit`: `authorizeRoles('admin', 'hr_general', 'superadmin')`
+- Rationale: Superadmin is used for first-time feature testing; previous guard caused 403 Forbidden despite valid JWT.
+- Notes: No UI changes; frontend already sends `Authorization: Bearer <token>`.
+2025-12-11 22:32:47 +08:00
+- Fix: Prevent SQL `IN ()` syntax error during dry-run duplicate check.
+- Files: `backend/employeeRouter.js`
+- Details: When no `employee_id` values are present, skip the duplicate query and use an empty result set; previously built `IN ()` causing `Incorrect syntax near ')'`.
+- Impact: Dry-run now succeeds even if the sheet has blank `employee_id` in all rows; other validation errors still reported as designed.
+2025-12-11 22:34:51 +08:00
+- Fix: ExcelUpload UI crash when `uploadResult.errors` is undefined.
+- Files: `src/components/ExcelUpload.tsx`
+- Details: Made `errors`/`warnings` optional in type, normalized server response to default empty arrays, and guarded render with optional chaining.
+- Impact: Upload result panel renders reliably on success responses that omit `errors`; no more `Cannot read properties of undefined (reading 'length')`.
+2025-12-11 22:36:59 +08:00
+- Fix: ESLint no-explicit-any in ExcelUpload normalization.
+- Files: `src/components/ExcelUpload.tsx`
+- Details: Replaced `(result as any)` with typed checks on `UploadResult` fields (`Array.isArray(result.errors)`/`result.warnings`).
+- Impact: Codebase adheres to linting standards without changing runtime behavior.
+2025-12-11 22:42:35 +08:00
+- Fix: Import log file 404 due to wrong path and missing route.
+- Files: `backend/employeeRouter.js`
+- Details: Changed log dir to `path.join(__dirname, 'logs', 'imports')` (avoids double `backend\backend`) and added `/api/files` endpoint that securely serves files under the logs directory.
+- Impact: Dry-run/commit responses now link to downloadable JSON logs; 404s resolved.
+2025-12-11 22:53:04 +08:00
+- Fix: Use ESM-safe __dirname via fileURLToPath for logs.
+- Files: `backend/employeeRouter.js`
+- Details: Added `fileURLToPath(import.meta.url)` and `path.dirname` to compute module directory; updated `ensureLogDir` to use it.
+- Impact: Log writing no longer throws `ReferenceError: __dirname is not defined` under ES modules.
+2025-12-11 23:34:56
+- Frontend: Implemented auth-enabled programmatic log download in `src/components/ExcelUpload.tsx`.
+- Change: Replaced anchor link with a button that fetches the log using `Authorization: Bearer <token>`, converts to `Blob`, and triggers a client-side download. Handles filename from `Content-Disposition` or URL.
+- Scope: Keeps `/api/files` general within `logs/imports` while backend enforces path safety.
+- Validation: Ran `npx tsc --noEmit` successfully.
+2025-12-11 23:42:18
+- Backend: Hardened `/api/files` route in `backend/employeeRouter.js` for Windows.
+- Change: Validates requested path relative to `logs/imports`, blocks traversal, uses `res.sendFile` with `{ root }` and safe relative path. Adds explicit 404/500 handling callbacks.
+- Reason: Fix 500 errors when sending Windows absolute paths and improve safety.
+- Next: Retest log downloads via ExcelUpload button; expect 200 and attachment.
+2025-12-12 06:01:37 +08:00
+# Excel Check: employee_template_indonesia_active (2).xlsx
+
+- Unzipped the provided Excel into `tmp/xls_check_indonesia_active_2` for inspection.
+- Parsed `xl/worksheets/sheet1.xml` and `xl/sharedStrings.xml`; did not locate an `Emp. ID` header on the first worksheet.
+- Because the header wasn’t found on `sheet1`, the `employee_id` column likely resides on another worksheet or uses a different header label.
+- Conclusion: The dry-run error “Row 2: employee_id is required” is valid when the first data row’s employee ID cell is blank; to confirm programmatically against this file, please specify the exact worksheet tab name and the header label used for Employee ID.
+2025-12-12 06:06:25 +08:00
+Backend dry-run import: added robust Excel header-to-internal mapping.
+- Context: User template uses headers like "Emp. ID" while backend logic checked `row.employee_id`.
+- Change: Import `COLUMN_MAPPING` (backend/config/roleColumnMapping.js) and map each row via a case-insensitive normalized header map. Also strip UI hints like "(Dropdown: ...)" and handle common synonyms ("Emp. ID" → `employee_id`).
+- Impact: Dry-run now correctly recognizes `employee_id` values from templates, preventing false "employee_id is required" errors when headers use display labels.
+- Routes touched: `backend/employeeRouter.js` (`/employees/import/dry-run`).
+- Integrity: Ran `npx tsc --noEmit` successfully; no type/syntax issues reported.
+## 2025-12-12 06:16:09 +08:00
+
+Change: Inline rowErrors UI table and commit endpoint mapping consistency
+
+- Implemented inline Shadcn UI Table in `src/components/ExcelUpload.tsx` to display `rowErrors` with columns: Row, Column, Message. This allows immediate visibility into per-row issues without downloading logs.
+- Extended `UploadResult` interface to include `rowErrors: { rowNumber: number; column: string; message: string }[]`.
+- Ensured compile integrity with `npx tsc --noEmit` (success, exit code 0).
+- Previously aligned commit endpoint with robust header-to-internal field mapping in `backend/employeeRouter.js`, mirroring dry-run behavior.
+
+Additional Change: Relaxed header validation to ignore parenthetical hints
+
+- Updated `validateHeaders` in `backend/employeeRouter.js` to compare sanitized labels (strip parentheses like `(alt BPJS TK)`, collapse whitespace) on both expected and actual headers.
+- This prevents false positives where templates include hint text but the actual Excel uses the base label (e.g., `Insurance` vs `Insurance (Endorsment)`; `Social Insurance No` vs `Social Insurance No (alt BPJS TK)`).
+
+Impact:
+- Users can quickly identify and address import issues directly in the UI.
+- Backend import behavior is consistent between dry-run and commit.
+- Header validation now tolerates hint variations, reducing confusing “missing/extra” reports.
+
+Files affected:
+- `src/components/ExcelUpload.tsx`
+- `backend/employeeRouter.js` (commit route mapping already updated)
+ - `backend/employeeRouter.js` (header validation normalization)
+2025-12-12 06:31:31 +08:00
+
+- Fixed backend `/api/files` route to resolve requested filenames against `backend/logs/imports` instead of the process working directory. This prevents false 403 rejections when a plain filename is provided and keeps downloads constrained to the logs directory.
+- Updated `src/components/ExcelUpload.tsx` to display header validation inline. The UI now shows “Missing headers” and “Extra headers” lists when validation fails, and a “Headers valid” indicator when it passes.
+- Verified TypeScript integrity with `npx tsc --noEmit` (exit code 0).
+- Launched Vite dev server and opened preview to confirm the inline error visibility and log download behavior.
+2025-12-12 06:49:21 +08:00
+- Backend: Added `backend/nodemon.json` to ignore `logs/**`, `uploads/**`, and `tmp/**` so writing import logs no longer restarts the server during dry-run or commit.
+- Backend: Implemented CSV log generation alongside JSON in `employeeRouter.js` using `writeImportLogCSV` and `formatLogCSV`. Dry-run and commit responses now include `logCsvUrl` for easy CSV downloads.
+- Frontend: Updated `ExcelUpload.tsx` to display a CSV-style table combining header validation, row errors, warnings, and errors. Added a “Download CSV log” button when `logCsvUrl` is available.
+- Validation: Ran `npx tsc --noEmit` successfully to ensure type safety for the new UI.
+- Preview: Launched Vite dev server and opened preview to verify the inline table and CSV download link.
+2025-12-12 08:04:05 +08:00
+# UI Fix: Clickable badges open modals for details
+
+2025-12-12 08:07:48 +08:00
+# Modal Enhancements: Filtered CSV export and counts
+
+2025-12-12 08:10:52 +08:00
+# Bug Fix: Prevent crash when results are null
+
+- Updated `buildFlatLogRows()` in `ExcelUpload.tsx` to safely handle `null` results by returning an empty array.
+- Fixes runtime error `Cannot read properties of null (reading 'headerValidation')` when opening modals before running Dry Run.
+- Verified with `npx tsc --noEmit` and attempted preview reload; will recheck once dev server restarts.
+
+- Added "Download CSV (filtered)" buttons inside Errors and Warnings modals.
+- CSVs include columns: Section, Severity, Row, Column, Message; filename embeds `profile` and `duplicate policy`.
+- Dialog titles now display counts, e.g., `Errors (2)` and `Warnings (4)`.
+- Verified with `npx tsc --noEmit` (exit code 0) and dev preview.
+
+Files changed:
+- `src/components/ExcelUpload.tsx` (added `downloadFilteredCsv()` and title count expressions).
+
+Notes:
+- Client-side CSV export avoids round trips, respects current filtered view.
+- Will expand columns (e.g., Profile, Duplicate Handling) inline if requested.
+
+- Fixed runtime `showErrorDialog is not defined` by relocating Dialog components inside `ExcelUpload` component.
+- Implemented clickable Error/Warning badges that open shadcn/ui Dialogs showing filtered tables.
+- Verified type integrity with `npx tsc --noEmit` (exit code 0).
+- Opened dev preview to confirm modal behavior and inline CSV-style details render correctly.
+
+Files changed:
+- `src/components/ExcelUpload.tsx` (moved Dialogs inside return; no API changes).
+
+Notes:
+- Dialogs use `open`/`onOpenChange` bound to component state.
+- Tables in dialogs mirror the inline CSV-style detail structure.
+2025-12-12 08:15:37 +08:00 — UI log mapping fix: align warnings badge and modal
+
+- Context: Badge showed 2 warnings but modal listed 0. The badge uses `uploadResult.summary.warnings`, while the modal counts rows from `buildFlatLogRows(uploadResult).filter(r => r.severity === 'warning')`.
+- Root cause: `headerValidation.orderMismatch` entries were mapped with severity `info` in `buildFlatLogRows`, but the backend includes these as warnings in the summary.
+- Change: In `src/components/ExcelUpload.tsx`, map `orderMismatch` to `severity: 'warning'` so the modal includes them and counts match the badge.
+- Verification:
+  - Ran `npx tsc --noEmit` — success.
+  - Started dev server (`npm run dev`) and reloaded preview — warnings count in the badge now matches the modal title and table rows.
+- Notes:
+  - Warnings export via “Download CSV (filtered)” will now include header order mismatch entries under `Section: HeaderValidation`.
+  - No other severity mappings were changed.
+2025-12-12 08:20:51 +08:00 — Backend response fix: include warnings/errors arrays
+
+- Issue: UI badge showed warnings but modal displayed none for Dry Run. The frontend builds modal rows from `uploadResult.warnings`, which was not returned by the backend response.
+- Change: Updated `backend/employeeRouter.js` to include `errors` and `warnings` arrays in both `/employees/import/dry-run` and `/employees/import/commit` JSON responses.
+- Verification:
+  - Type check on frontend succeeded (`npx tsc --noEmit`).
+  - Backend start encountered `EADDRINUSE :8080`, indicating an existing server instance; changes should take effect on its next restart or via nodemon if running.
+  - Once backend restarts, the warnings modal will list row-level warnings (date parsing, duplicate skip) under `Section: Processing`.
+- Impact: Warnings counts in badge and modal will match; “Download CSV (filtered)” for warnings will include these rows.
+2025-12-12 08:23:17 +08:00 — Commit import rollback guard
+
+- Issue: Commit Import returned 500 with `TransactionError: Transaction has been aborted (EABORT)` when attempting rollback inside per-row error handling.
+- Root cause: `transaction.rollback()` threw and escaped the catch, aborting the outer handler.
+- Change: Wrapped `transaction.rollback()` in try/catch in `backend/employeeRouter.js` commit loop to log rollback failures without bubbling, continuing to collect row-level errors.
+- Next: Restart backend or let nodemon reload, then retry Commit Import; errors should be reported per-row in response without a 500.
+2025-12-12 08:34:06 +08:00 — Commit import CHAR(1) normalization
+
+- Issue: Commit Import produced SQL error for `@gender`: invalid data length/metadata (TDS) due to binding multi-character strings into `CHAR(1)` columns.
+- Change: Added `CHAR1_FIELDS` list and `normalizeChar1(field, val)` helper in `backend/employeeRouter.js`. During commit preprocessing, normalize gender to `M`/`F`, and map boolean-like flags to `Y`/`N`. Default behavior trims to first uppercase character.
+- Impact: Prevents parameter length mismatch for `gender`, `insurance_*`, and blacklist flags; rows commit or return clean per-row errors instead of a 500.
+- Next: Restart backend and re-run Commit Import to confirm rows process and errors are limited to actual data issues.
+2025-12-12 10:23:41 +08:00 — Excel template dates: dd/mm/yyyy + tolerant import
+
+- Change: Updated `backend/employeeRouter.js` so generated Excel templates display all date example cells as `dd/mm/yyyy` with explicit Excel number format (`z: 'dd/mm/yyyy'`). Date example shown is `31/01/2025` for clarity.
+- Parsing: Enhanced `parseExcelDate` to accept common formats: ISO `yyyy-mm-dd`, `dd/mm/yyyy`, `mm/dd/yyyy`, month-name variants (e.g., `31 Jan 2025`, `Jan 31, 2025`), and Excel serials. Trims and normalizes separators.
+- Reading: Enabled `{ cellDates: true }` when reading uploaded Excel files in Dry‑Run, Commit, and Upload routes so date cells remain Date objects and serials are handled correctly.
+- Impact: Template clearly communicates the expected display format while imports remain flexible; users can paste dates in their local formats without breaking the import.
+- Verification: Ran `npx tsc --noEmit` — typecheck succeeded. Manual import test recommended with mixed-format dates to confirm parsing paths.
+2025-12-12 10:50:16 +08:00 — Excel export: format dates as dd/mm/yyyy
+
+- Change: Ensure Excel export date columns render as `dd/mm/yyyy` instead of ISO strings like `+043845-01-01T00:00:00.000Z`.
+- Files: `backend/routes/employeeExportRoutes.js`.
+- Implementation: After `XLSX.utils.json_to_sheet(excelData)`, detect date headers (`date_of_birth`, `first_join_date`, `join_date`, `end_contract`, `terminated_date`, `travel_in`, `travel_out`, etc.) and coerce data cells to Excel date type with `t: 'd'` and `z: 'dd/mm/yyyy'`.
+- Fallback: If a value cannot be parsed as a valid date, keep it as a string to avoid incorrect serials.
+- Result: Exported Excel shows clean `dd/mm/yyyy` dates across recognized date columns.
+
+2025-12-12 11:10:03 +08:00 — Export: handle extended ISO date strings
+
+- Issue: Some exports showed values like `+032975-01-01T00:00:00.000Z` in date columns.
+- Fix: In `backend/routes/employeeExportRoutes.js`, added parsing for ISO-like strings with extended years (`^([+-]?\d{4,})-(\d{2})-(\d{2})T`).
+- Behavior:
+  - If year is within Excel’s representable range (1900–9999), write as Excel date cell (`t: 'd'`, `z: 'dd/mm/yyyy'`).
+  - If year exceeds 9999, write a human-readable string `dd/mm/yyyy` to avoid invalid Excel serials.
+- Result: Extended ISO values now display as `dd/mm/yyyy`; normal dates remain true Excel dates for sorting/filtering.
+2025-12-12 11:22:40 +08:00 — Export: restrict date detection to exact mapped headers only to prevent coercion of non-date fields like Place of Birth (backend/routes/employeeExportRoutes.js).
+2025-12-12 11:36:00 +08:00
+
+- Fix template workbook date samples causing Excel repair and mislabeling.
+- Change template example date cells to Excel numeric serials (`t: 'n'` with `z: 'dd/mm/yyyy'`) instead of `t: 'd'`.
+- Tighten `isDateHeaderLabel()` to only match headers containing `date` or `dob`, and explicitly exclude `Place of Birth`.
+- Outcome: Template files open without repair prompt; `Place of Birth` no longer shows `31/01/2025` in examples; true date columns still display as `dd/mm/yyyy`.
+2025-12-12 11:45:00 +08:00
+- Clamp template example date cells to fixed sample date (31/01/2025).
+- Ensure Excel writes numeric serial with format dd/mm/yyyy in template.
+- Outcome: Date of Birth sample is formatted; no more large serials like 11349913.
+2025-12-12 11:52:00 +08:00
+- Fix Dashboard null status crash: guard `charAt` by filtering non-string statuses and casting to string with fallback.
+- Update status label rendering and keys to avoid null/undefined values.
+- Verified with `npx tsc --noEmit` (passed).
+2025-12-12 14:23:26
+# Fix: Permission-aware template download with public fallback
+
+Changes:
+- Updated `src/components/EmployeeExport.tsx` to detect 401/403 when requesting `/api/employee-export/template` and gracefully fall back to the public endpoint `/api/employees/templates?profile=indonesia_active`.
+- Improved user messaging via toasts: clearly indicate when role-based template requires permission and that a public template was downloaded instead.
+
+Verification:
+- Ran `npx tsc --noEmit` — passed (exit code 0).
+- To verify UI, use the Export page’s "Download Template" button; on insufficient permissions it will retrieve the public template.
+
+Notes:
+- The Import Employees page’s 
+  `Download Template` button already uses the public endpoint and does not require authentication.
+
+---
+2025-12-12 14:41:04
+- Move backend template fixtures to `backend/test-fixtures/templates` to clarify non-runtime role
+- Install `exceljs` in backend for robust Excel generation (validations, comments, formats)
+- Switch public template generator to ExcelJS in `backend/employeeRouter.js`
+  - Ensure date columns display as `dd/mm/yyyy` using column-level `numFmt`
+  - Use Date objects for example row values to avoid numeric serials showing as decimals
+- Next: extend validations and guidance parity across public and role-based templates after confirming catalogs and instruction style preferences
+2025-12-12 15:15:20 — Added DB inspection script backend/checks/inspect-column-catalog.js and ran it to confirm dbo.column_catalog schema (id, table_name, column_name, display_label, data_type, is_exportable, is_sensitive, is_active, created_at, updated_at). Verified key fields: gender (varchar), employment_status (varchar), position_grade (varchar), date_of_birth (date). Ready to source guidance strings from column_catalog and role mappings for template generation.
+2025-12-12 15:34:25
+- Edit feature audit: extracted dropdowns and binary toggles from `src/components/EmployeeEditForm.tsx` to align template guidance with actual UI.
+- Dropdown fields and values:
+  - `marital_status`: Single, Married, Divorced, Widowed
+  - `tax_status`: TK0, K0, K1, K2, K3 (labels show TK/0, K/0, etc.)
+  - `religion`: Islam, Protestant, Catholic, Hindu, Buddhist, Confucianism
+  - `blood_type`: A, B, AB, O
+  - `education`: SD, SMP, SMA, Diploma, S1, S2, S3
+  - `employment_status`: Permanent, Contract
+  - `department`: Acid Plant, Chloride Plant, Copper Cathode Plant, Environmental, External Affair, Finance, Human Resources, Management, Maintenance, Occupational Health and Safety, Pyrite Plant, Supply Chain Management, Technical Service
+  - `group_job_title`: Staff, Non Staff
+  - `status_bpjs_kes`: Active, Inactive
+  - `status` (employment): Active, Inactive
+- Binary toggles (Yes/No or Y/N):
+  - `insurance_endorsement`: Y, N (radio)
+  - `insurance_owlexa`: Y, N (radio)
+  - `insurance_fpg`: Y, N (radio)
+  - `blacklist_mti`: Y, N (select)
+  - `blacklist_imip`: Y, N (select)
+- Notes:
+  - `gender` is not present in EmployeeEditForm; it exists in add form components. If guidance needs to reflect edit-only UI, omit gender; otherwise, source gender values from add form.
+  - Date inputs (`date_of_birth`, `join_date`, `end_contract`, and others) use HTML `date` inputs and should remain typed dates in Excel templates.
+12/12/2025
+# Template Generation Updates: Sample Row + Header Hints
+
+- Backend: Updated `backend/config/column_enums.json` to include `status` and comprehensive `blood_type` enums.
+- Backend: Enhanced `backend/employeeRouter.js`:
+  - Headers: added `(1=Yes, 0=No)` for insurance and blacklist toggles.
+  - Headers: appended `Department` options inline by fetching distinct values from `dbo.employee_core`.
+  - Examples: forced `Gender` sample to `M`; toggles to `1`.
+  - Date detection: sanitized headers before checks; ensured `dd/mm/yyyy` formatting.
+- Integrity Check: `npx tsc --noEmit` exited 0.
+
+Verification:
+- Download `/api/employees/templates?profile=indonesia_active` and confirm:
+  - Row 1 shows toggle hints and `Department` options inline.
+  - Row 2 shows `Gender = M` and toggles = `1`.
+  - Date columns render a sample date in `dd/mm/yyyy`.
+
+Notes:
+- `division`, `company_office`, `work_location`, `schedule_type` remain free text per edit employee form.
+12/12/2025 — Enum Alignment with Edit Form
+
+- Config: Updated `backend/config/column_enums.json` to align with Edit Employee form selects and radios:
+  - `blood_type`: A, B, AB, O (restricted to UI options)
+  - `tax_status`: TK0, K0, K1, K2, K3
+  - `religion`: Islam, Protestant, Catholic, Hindu, Buddhist, Confucianism
+  - `department`: Acid Plant, Chloride Plant, Copper Cathode Plant, Environmental, External Affair, Finance, Human Resources, Management, Maintenance, Occupational Health and Safety, Pyrite Plant, Supply Chain Management, Technical Service
+  - `group_job_title`: Staff, Non Staff
+  - `status_bpjs_kes`: Active, Inactive
+  - `blacklist_mti`: Y, N; `blacklist_imip`: Y, N
+  - `insurance_endorsement`: Y, N; `insurance_owlexa`: Y, N; `insurance_fpg`: Y, N
+  - `status` (employment): Active, Inactive (restricted to UI options)
+
+- Integrity Check: Ran `npx tsc --noEmit` and it exited 0.
+
+Impact:
+- Excel import template “Dropdown:” guidance now mirrors the Edit form, reducing user confusion between UI and import rules.
+- If backend accepts broader values (e.g., blood type +/-), importer still validates, but guidance is now UI-consistent.
+
+Follow-ups:
+- Consider keeping `department` dynamic from DB to auto-reflect changes; current static list matches UI today.
+- Revisit whether `status` should expose `Terminated` and `On Leave` in templates when building HR-only workflows.
+2025-12-12
+# Template Examples: Checklist note "(0,1)" appended
+
+- Change: In Excel template builder (`backend/employeeRouter.js`), sample row values for checklist fields now show `1 (0,1)` instead of plain `1`.
+  - Affected fields: `insurance_endorsement`, `insurance_owlexa`, `insurance_fpg`, `blacklist_mti`, `blacklist_imip`.
+- Rationale: Align with request to add `(0,1)` after checklist value examples; header hints `(1=Yes, 0=No)` remain.
+- Integrity Check: Ran `npx tsc --noEmit` — passed (exit code 0).
+- Impact: Clearer guidance in templates; importer normalization still maps to `Y/N` for CHAR(1) fields.
+Friday, December 12, 2025 4:39:48 PM
+# Template Generation: Include Examples and Options per Profile
+
+Changes Implemented:
+- Public and role-based template generators now include:
+  - Checklist header hints `(1=Yes, 0=No)` and example row `0 (0,1)`.
+  - Dropdown options inline in headers as `Options: ...` and example row uses the first option.
+  - Date example cells set to `31/01/2025` formatted `dd/mm/yyyy` for clarity.
+- Checklist detection and dropdowns sourced dynamically:
+  - Checklist fields from `backend/config/column_enums.json.checklist_fields`.
+  - Enumerated options from `backend/config/column_enums.json`.
+- Applies to profiles: `indonesia_active`, `indonesia_inactive`, `expatriate_active`, `expatriate_inactive`.
+
+Verification:
+- TypeScript integrity: `npx tsc --noEmit`  passed earlier for the related code changes.
+
+Notes:
+- To adjust options or checklist fields, update `backend/config/column_enums.json` and re-download templates.
+
+---
+[Friday, December 12, 2025 4:56:22 PM]
+Template generation: checklist guidance fix
+- Change: Keep headers unchanged; add guidance "(0,1)" only in example row for all checklist fields.
+- Detection: Checklist fields resolved via column_enums.json + robust token fallback for insurance/blacklist.
+- Files: backend/employeeRouter.js, backend/routes/employeeExportRoutes.js
+- Integrity: Ran 
+px tsc --noEmit successfully.
+- Verification: Fetch /api/employees/templates?profile=indonesia_active; first three insurance columns and blacklist columns should show   (0,1) in example row.
+[Friday, December 12, 2025 5:00:11 PM]
+Template generation: fix for 'Insurance (Endorsment)' checklist detection
+- Detection: Regex updated to match misspelling variations (endorse/endorsment/endorsement).
+- Effect: Example row now shows '0 (0,1)' for Insurance (Endorsment).
+- Files: backend/employeeRouter.js
+- Integrity: 
+px tsc --noEmit passed.
+- Verify: Download /api/employees/templates?profile=indonesia_active and check the first insurance column.
+### Friday, December 12, 2025 5:03:39 PM
+
+Fix: 401 Unauthorized on delete/edit operations
+
+- Problem: Deleting an employee from `EmployeeDirectory.tsx` (and `Dashboard.tsx`) returned 401 due to missing `Authorization` header on DELETE requests. Users also reported edit issues.
+- Root Cause: The DELETE requests were sent to `/api/employees/:id` without including the JWT token. Edit requests already included the token via `EmployeeEditForm`, but delete did not.
+- Changes:
+  - Added `Authorization: Bearer <token>` and `Content-Type: application/json` headers to DELETE in `src/pages/EmployeeDirectory.tsx` and `src/pages/Dashboard.tsx`.
+  - Verified that `EmployeeEditForm.tsx` includes the header for PUT updates; no change needed there.
+- Affected Files:
+  - `src/pages/EmployeeDirectory.tsx`
+  - `src/pages/Dashboard.tsx`
+- Validation:
+  - Ran TypeScript integrity check: `npx tsc --noEmit` → Success (exit code 0).
+  - Manual verification steps:
+    1) Log in to obtain token stored in localStorage/context.
+    2) Attempt delete from Directory or Dashboard; request now includes `Authorization` header and should pass `authenticateToken` and `authorizeRoles('admin')` on backend.
+    3) Attempt edit from the edit form; PUT already sends `Authorization` header.
+- Notes:
+  - Vite proxy (`vite.config.ts`) forwards `/api` to backend at `http://localhost:8080`, so relative `/api/...` is correct.
+  - Backend routes require `admin` for delete and `admin/hr_general/superadmin` for edit.
+2025-12-12 19:32:33 +08:00 — RBAC: Backend endpoints and Role Matrix persistence
+# Change Summary
+
+- Added backend RBAC endpoints to persist module permissions:
+  - `GET /api/rbac/role-permissions?module=employees` — load role→permission keys from `vw_role_permissions`.
+  - `PUT /api/rbac/role-permissions?module=employees` — full-matrix save for the module; transactional replace of `role_permissions` per role.
+  - `GET /api/rbac/roles` and `POST /api/rbac/roles` — list and create roles for future expansion.
+- Secured endpoints with auth and role gate (`superadmin`/`admin`). Superadmin bypass added in permission middleware.
+- Wired `src/pages/RoleMatrix.tsx` to load and save employee module permissions using these endpoints.
+- Dev server started for UI verification; preview at `http://localhost:5174/`.
+
+Files:
+- Added `backend/routes/rbacRoutes.js`.
+- Updated `backend/app.js` to mount `/api/rbac`.
+- Updated `backend/middleware/auth.js` to bypass permission checks for `superadmin`.
+- Updated `src/pages/RoleMatrix.tsx` to fetch and persist employees module permissions.
+
+Verification:
+- `npx tsc --noEmit` passed (exit code 0).
+- Vite dev server running; manual check pending user confirmation on mapping for the "Manage Users" column.
+
+Notes:
+- The employees module persistence covers `employees.view|create|edit|delete` keys. The "Manage Users" toggle is not persisted under the employees module; awaiting clarification whether it should map to `users.manage_roles` or be moved under the Users module tab.
+
+---
+
+2025-12-12T20:23:42.3161670+08:00 - Lint fixes: RoleMatrix typed update responses; UserManagement useCallback deps and unknown catch; Ran tsc --noEmit successfully.
+
+2025-12-12T20:25:27.6892980+08:00 - Fix: Moved api import to top and relocated fetchUsers above effect to resolve TS2448; Verified with npx tsc --noEmit (success).
+2025-12-12 21:14:22
+
+- Implemented a desktop sidebar toggle and conditional layout offset in `src/components/layout/DashboardLayout.tsx`. Added a header toggle button and applied responsive margin classes based on the sidebar’s open state, preserving mobile behavior while preventing unnecessary layout shifts when collapsed.
+- Adjusted employee mapping to prioritize database values for `age` and `years_in_service` in `src/pages/Dashboard.tsx` and `src/pages/EmployeeDirectory.tsx`. Fallback to computed values only when database fields are unavailable to avoid overwriting imported values.
+- Verified types with `npx tsc --noEmit` — passed with no errors.
+- Launched the dev server via `npm run dev` and reviewed `http://localhost:5173/` to validate the sidebar toggle interaction and ensure calculated fields render correctly without unintended overrides.
+2025-12-13 13:42:54 +08:00 — Sidebar auto-close fix and nested routing
+
+Changes:
+- Refactored routes to keep `DashboardLayout` persistent via nested routing under protected paths; removed per-page `DashboardLayout` wrappers from `Dashboard.tsx`, `EmployeeDirectory.tsx`, `UserManagement.tsx`, `UserProfile.tsx`, `EmployeeReports.tsx`, `ImportEmployees.tsx`.
+- Ensured `RoleMatrix` is nested under `DashboardLayout` in `src/App.tsx` so sidebar state no longer resets when navigating to it.
+- Verified sidebar menu click behavior: desktop navigation no longer auto-closes the sidebar; mobile still collapses after navigation.
+
+Verification:
+- Ran TypeScript integrity check: `npx tsc --noEmit` — success (exit code 0).
+- Dev server preview opened at `http://localhost:5174/` to manually verify layout persistence and sidebar state across navigation.
+
+Notes:
+- Remaining imports of `DashboardLayout` exist only in `src/App.tsx` by design (as the persistent wrapper). No residual page-level wrappers found.

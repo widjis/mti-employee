@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -29,8 +29,9 @@ import {
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { User, ROLE_PERMISSIONS } from '@/types/user';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+// DashboardLayout provided by router context; remove local wrapper
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
+import { api } from '@/lib/apiClient';
 
 interface UserWithPermissions extends User {
   createdAt: string;
@@ -137,11 +138,25 @@ const UserManagement: React.FC = () => {
   const canManageUsers = user?.role === 'superadmin' || 
     (user?.role && ROLE_PERMISSIONS[user.role]?.users?.manage_users);
 
+  const fetchUsers = useCallback(async () => {
+    try {
+      const data = await api.get<{ users: UserWithPermissions[] }>(
+        '/api/users'
+      );
+      setUsers(data.users || []);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      toast({ title: 'Error', description: 'Failed to load users', variant: 'destructive' });
+    } finally {
+      setLoading(false);
+    }
+  }, [toast]);
+
   useEffect(() => {
     if (canManageUsers) {
       fetchUsers();
     }
-  }, [canManageUsers]);
+  }, [canManageUsers, fetchUsers]);
 
   // Debug selectedUser changes
   useEffect(() => {
@@ -151,71 +166,18 @@ const UserManagement: React.FC = () => {
     }
   }, [selectedUser]);
 
-  const fetchUsers = async () => {
-    try {
-      const response = await fetch('/api/users', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setUsers(data.users || []);
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to load users",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
-      console.error('Error fetching users:', error);
-      toast({
-        title: "Error",
-        description: "Failed to connect to server",
-        variant: "destructive"
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleCreateUser = async () => {
     try {
-      const response = await fetch('/api/users', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(newUser)
-      });
-      
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "User created successfully"
-        });
-        setIsCreateDialogOpen(false);
-        setNewUser({ username: '', name: '', role: 'employee', department: '', password: '' });
-        fetchUsers();
-      } else {
-        const error = await response.json();
-        toast({
-          title: "Error",
-          description: error.message || "Failed to create user",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
+      await api.post('/api/users', newUser);
+      toast({ title: 'Success', description: 'User created successfully' });
+      setIsCreateDialogOpen(false);
+      setNewUser({ username: '', name: '', role: 'employee', department: '', password: '' });
+      fetchUsers();
+    } catch (error: unknown) {
       console.error('Error creating user:', error);
-      toast({
-        title: "Error",
-        description: "Failed to create user",
-        variant: "destructive"
-      });
+      const message = (error as { body?: { message?: string } })?.body?.message || 'Failed to create user';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
     }
   };
 
@@ -223,36 +185,16 @@ const UserManagement: React.FC = () => {
     if (!selectedUser) return;
     
     try {
-      const response = await fetch(`/api/users/${selectedUser.id}`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          name: selectedUser.name,
-          role: selectedUser.role,
-          department: selectedUser.department,
-          status: selectedUser.status
-        })
+      await api.put(`/api/users/${selectedUser.id}`, {
+        name: selectedUser.name,
+        role: selectedUser.role,
+        department: selectedUser.department,
+        status: selectedUser.status,
       });
-      
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "User updated successfully"
-        });
-        setIsEditDialogOpen(false);
-        setSelectedUser(null);
-        fetchUsers();
-      } else {
-        const error = await response.json();
-        toast({
-          title: "Error",
-          description: error.message || "Failed to update user",
-          variant: "destructive"
-        });
-      }
+      toast({ title: 'Success', description: 'User updated successfully' });
+      setIsEditDialogOpen(false);
+      setSelectedUser(null);
+      fetchUsers();
     } catch (error) {
       console.error('Error updating user:', error);
       toast({
@@ -267,28 +209,9 @@ const UserManagement: React.FC = () => {
     if (!confirm('Are you sure you want to delete this user?')) return;
     
     try {
-      const response = await fetch(`/api/users/${userId}`, {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "User deleted successfully"
-        });
-        fetchUsers();
-      } else {
-        const error = await response.json();
-        toast({
-          title: "Error",
-          description: error.message || "Failed to delete user",
-          variant: "destructive"
-        });
-      }
+      await api.delete(`/api/users/${userId}`);
+      toast({ title: 'Success', description: 'User deleted successfully' });
+      fetchUsers();
     } catch (error) {
       console.error('Error deleting user:', error);
       toast({
@@ -344,34 +267,12 @@ const UserManagement: React.FC = () => {
     }
     
     try {
-      const response = await fetch(`/api/users/${selectedUser.id}/password`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          newPassword: newPassword
-        })
-      });
-      
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Password reset successfully"
-        });
-        setIsPasswordResetDialogOpen(false);
-        setSelectedUser(null);
-        setNewPassword('');
-        setConfirmPassword('');
-      } else {
-        const error = await response.json();
-        toast({
-          title: "Error",
-          description: error.message || "Failed to reset password",
-          variant: "destructive"
-        });
-      }
+      await api.put(`/api/users/${selectedUser.id}/password`, { newPassword });
+      toast({ title: 'Success', description: 'Password reset successfully' });
+      setIsPasswordResetDialogOpen(false);
+      setSelectedUser(null);
+      setNewPassword('');
+      setConfirmPassword('');
     } catch (error) {
       console.error('Error resetting password:', error);
       toast({
@@ -405,37 +306,14 @@ const UserManagement: React.FC = () => {
       .map(perm => perm.field);
     
     try {
-      const response = await fetch(`/api/users/${selectedUser.id}/permissions`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ allowedColumns })
-      });
-      
-      if (response.ok) {
-        toast({
-          title: "Success",
-          description: "Permissions updated successfully"
-        });
-        setIsPermissionDialogOpen(false);
-        fetchUsers();
-      } else {
-        const error = await response.json();
-        toast({
-          title: "Error",
-          description: error.message || "Failed to update permissions",
-          variant: "destructive"
-        });
-      }
-    } catch (error) {
+      await api.put(`/api/users/${selectedUser.id}/permissions`, { allowedColumns });
+      toast({ title: 'Success', description: 'Permissions updated successfully' });
+      setIsPermissionDialogOpen(false);
+      fetchUsers();
+    } catch (error: unknown) {
       console.error('Error updating permissions:', error);
-      toast({
-        title: "Error",
-        description: "Failed to update permissions",
-        variant: "destructive"
-      });
+      const message = (error as { body?: { message?: string } })?.body?.message || 'Failed to update permissions';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
     }
   };
 
@@ -474,7 +352,6 @@ const UserManagement: React.FC = () => {
   }
 
   return (
-    <DashboardLayout>
       <div className="container mx-auto p-6 space-y-6">
       {/* Current User Role Info */}
       <Alert className="border-blue-200 bg-blue-50">
@@ -900,7 +777,6 @@ const UserManagement: React.FC = () => {
         </DialogContent>
       </Dialog>
       </div>
-    </DashboardLayout>
   );
 };
 

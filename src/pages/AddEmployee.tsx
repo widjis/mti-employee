@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+// DashboardLayout is provided by nested routing; remove local wrapper
 import AddEmployeeFormContent from '@/components/AddEmployeeFormContent';
 import { Employee, hasPermission } from '@/types/user';
 import { Button } from '@/components/ui/button';
@@ -21,7 +21,6 @@ const AddEmployee = () => {
   // Redirect if no permission
   if (!canCreateEmployees) {
     return (
-      <DashboardLayout>
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <h2 className="text-2xl font-bold text-muted-foreground mb-2">Access Denied</h2>
@@ -36,7 +35,6 @@ const AddEmployee = () => {
             </Button>
           </div>
         </div>
-      </DashboardLayout>
     );
   }
 
@@ -56,7 +54,6 @@ const AddEmployee = () => {
   };
 
   return (
-    <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -101,7 +98,6 @@ const AddEmployee = () => {
           </CardContent>
         </Card>
       </div>
-    </DashboardLayout>
   );
 };
 

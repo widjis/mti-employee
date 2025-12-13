@@ -1,0 +1,13 @@
+{
+  "watch": ["."],
+  "ext": "js,json",
+  "ignore": [
+    "logs/**",
+    "logs/**/*",
+    "uploads/**",
+    "uploads/**/*",
+    "tmp/**",
+    "tmp/**/*"
+  ],
+  "exec": "node app.js"
+}

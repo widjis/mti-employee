@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { api } from '@/lib/apiClient';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -68,46 +69,18 @@ const EmployeeExport: React.FC = () => {
 
   const fetchExportOptions = async () => {
     try {
-      const response = await fetch('/api/employee-export/options', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setExportOptions(data.options);
-      } else {
-        toast({
-          title: "Error",
-          description: "Failed to load export options",
-          variant: "destructive"
-        });
-      }
+      const data = await api.get<ExportOptions>('/api/employee-export/options');
+      setExportOptions(data);
     } catch (error) {
       console.error('Error fetching export options:', error);
-      toast({
-        title: "Error",
-        description: "Failed to connect to server",
-        variant: "destructive"
-      });
+      toast({ title: 'Error', description: 'Failed to load export options', variant: 'destructive' });
     }
   };
 
   const fetchStats = async () => {
     try {
-      const response = await fetch('/api/employee-export/stats', {
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        }
-      });
-      
-      if (response.ok) {
-        const data = await response.json();
-        setStats(data);
-      }
+      const data = await api.get<EmployeeStats>('/api/employee-export/stats');
+      setStats(data);
     } catch (error) {
       console.error('Error fetching stats:', error);
     } finally {
@@ -194,11 +167,48 @@ const EmployeeExport: React.FC = () => {
           description: "Template downloaded successfully"
         });
       } else {
-        toast({
-          title: "Error",
-          description: "Failed to download template",
-          variant: "destructive"
-        });
+        // If permission error on role-based template, fallback to public template endpoint
+        if (response.status === 401 || response.status === 403) {
+          try {
+            const fallbackProfile = 'indonesia_active';
+            const publicRes = await fetch(`/api/employees/templates?profile=${encodeURIComponent(fallbackProfile)}`);
+            if (publicRes.ok) {
+              const blob = await publicRes.blob();
+              const url = window.URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = `employee_template_${fallbackProfile}.xlsx`;
+              document.body.appendChild(a);
+              a.click();
+              window.URL.revokeObjectURL(url);
+              document.body.removeChild(a);
+
+              toast({
+                title: 'Using public template',
+                description: 'Role-based template requires permission. Downloaded public template instead.',
+              });
+            } else {
+              toast({
+                title: 'Permission required',
+                description: 'You do not have access to the role-based template, and public fallback failed.',
+                variant: 'destructive'
+              });
+            }
+          } catch (fallbackErr) {
+            console.error('Fallback template download error:', fallbackErr);
+            toast({
+              title: 'Error',
+              description: 'Failed to download template (fallback error).',
+              variant: 'destructive'
+            });
+          }
+        } else {
+          toast({
+            title: "Error",
+            description: "Failed to download template",
+            variant: "destructive"
+          });
+        }
       }
     } catch (error) {
       console.error('Template download error:', error);

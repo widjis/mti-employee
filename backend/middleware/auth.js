@@ -1,5 +1,6 @@
 import jwt from 'jsonwebtoken';
 import config from '../config/app.js';
+import { executeProcedure } from '../config/database.js';
 
 /**
  * JWT Authentication Middleware
@@ -72,6 +73,59 @@ export const hasPermission = (req, res, next) => {
   }
 
   next();
+};
+
+/**
+ * Permission-based Authorization Middleware
+ * Checks if the authenticated user has the specified permission key
+ * Uses SQL stored procedure dbo.sp_check_user_permission (@username, @permission_key)
+ */
+export const authorizePermission = (permissionKey) => {
+  return async (req, res, next) => {
+    try {
+      if (!req.user) {
+        return res.status(401).json({
+          success: false,
+          message: 'Authentication required'
+        });
+      }
+
+      // Superadmin bypass: full access without DB check
+      if (req.user.role === 'superadmin') {
+        return next();
+      }
+
+      const username = req.user.username || req.user.user?.username;
+      if (!username) {
+        return res.status(400).json({
+          success: false,
+          message: 'Username missing from token payload'
+        });
+      }
+
+      const result = await executeProcedure('sp_check_user_permission', {
+        username,
+        permission_key: permissionKey
+      });
+
+      const has = Array.isArray(result?.recordset) && result.recordset[0]?.has_permission === 1;
+      if (!has) {
+        return res.status(403).json({
+          success: false,
+          message: `Insufficient permission: ${permissionKey}`
+        });
+      }
+
+      return next();
+    } catch (error) {
+      console.error('authorizePermission error:', error?.message || error);
+      return res.status(500).json({
+        success: false,
+        message: 'Permission check failed',
+        error: error?.message || String(error)
+      });
+    }
+  };
 };
 
 /**

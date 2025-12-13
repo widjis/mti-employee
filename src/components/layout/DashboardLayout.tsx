@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Outlet } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
@@ -13,11 +14,7 @@ import { LogOut, User, Menu, Crown, ShieldCheck, Users2, Calculator, Building2 }
 import { cn } from '../../lib/utils';
 import Sidebar from './Sidebar';
 
-interface DashboardLayoutProps {
-  children: React.ReactNode;
-}
-
-const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
+const DashboardLayout: React.FC = () => {
   const { user, logout } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
@@ -65,7 +62,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
       {/* Main Content Area */}
       <div className={cn(
         'transition-all duration-200 ease-in-out',
-        'lg:ml-64' // Always offset by sidebar width on large screens
+        sidebarOpen && 'lg:ml-64'
       )}>
         {/* Header */}
         <header className="border-b bg-card shadow-sm sticky top-0 z-30">
@@ -77,6 +74,17 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
                 size="sm"
                 className="lg:hidden"
                 onClick={() => setSidebarOpen(!sidebarOpen)}
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+              {/* Desktop sidebar toggle */}
+              <Button
+                variant="ghost"
+                size="sm"
+                className="hidden lg:flex"
+                onClick={() => setSidebarOpen(!sidebarOpen)}
+                aria-label={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
+                title={sidebarOpen ? 'Hide sidebar' : 'Show sidebar'}
               >
                 <Menu className="h-5 w-5" />
               </Button>
@@ -171,7 +179,7 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children }) => {
 
         {/* Main Content */}
         <main className="p-4 lg:p-6">
-          {children}
+          <Outlet />
         </main>
       </div>
     </div>

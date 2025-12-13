@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { useIsMobile } from '@/hooks/use-mobile';
 import {
   Collapsible,
   CollapsibleContent,
@@ -95,6 +96,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
+  const isMobile = useIsMobile();
 
   if (!user) return null;
 
@@ -168,8 +170,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
         onClick={() => {
           if (item.path) {
             navigate(item.path);
-            // Close sidebar on mobile after navigation
-            if (window.innerWidth < 1024) {
+            // Only auto-close on true mobile (sheet/overlay)
+            if (isMobile) {
               onToggle();
             }
           }
@@ -197,8 +199,11 @@ const Sidebar: React.FC<SidebarProps> = ({ isOpen, onToggle }) => {
       {/* Sidebar */}
       <div
         className={cn(
-          'fixed left-0 top-0 z-50 h-full w-64 transform bg-card border-r transition-transform duration-200 ease-in-out lg:fixed lg:translate-x-0',
-          isOpen ? 'translate-x-0' : '-translate-x-full'
+          // Remove forced lg:translate-x-0 so desktop can fully hide
+          'fixed left-0 top-0 z-50 h-full w-64 transform bg-card border-r transition-transform duration-200 ease-in-out lg:fixed',
+          isOpen
+            ? 'translate-x-0 lg:translate-x-0'
+            : '-translate-x-full lg:-translate-x-full'
         )}
       >
         {/* Header */}

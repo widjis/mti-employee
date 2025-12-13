@@ -1,12 +1,10 @@
 import React from 'react';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+// DashboardLayout is now handled by router; remove local wrapper
 import EmployeeExport from '@/components/EmployeeExport';
 
 const EmployeeReports: React.FC = () => {
   return (
-    <DashboardLayout>
       <EmployeeExport />
-    </DashboardLayout>
   );
 };
 

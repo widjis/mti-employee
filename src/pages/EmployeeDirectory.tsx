@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+// DashboardLayout is provided by nested routing; remove local wrapper
 import EmployeeTable from '@/components/EmployeeTable';
 import EmployeeEditForm from '@/components/EmployeeEditForm';
 // Removed inline AddEmployeeForm modal in favor of navigation to AddEmployee page
@@ -44,14 +44,7 @@ const EmployeeDirectory = () => {
     const fetchEmployees = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch('http://localhost:8080/api/employees', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        if (!res.ok) throw new Error('Failed to fetch employee data');
-        const employeesData: Employee[] = await res.json();
+        const employeesData = await api.get<Employee[]>('/api/employees');
 
         function calculateYears(fromDate: string): number {
           const from = new Date(fromDate);
@@ -64,11 +57,29 @@ const EmployeeDirectory = () => {
           return years;
         }
 
-        const enrichedEmployees = employeesData.map(emp => ({
-          ...emp,
-          age: emp.date_of_birth ? calculateYears(typeof emp.date_of_birth === 'string' ? emp.date_of_birth : emp.date_of_birth.toISOString()) : 0,
-          years_in_service: emp.first_join_date ? calculateYears(typeof emp.first_join_date === 'string' ? emp.first_join_date : emp.first_join_date.toISOString()) : 0,
-        }));
+        const enrichedEmployees = employeesData.map(emp => {
+          const ageFromDb = typeof emp.age === 'number' ? emp.age : null;
+          const yearsFromDb = typeof emp.years_in_service === 'number' ? emp.years_in_service : null;
+          const computedAge = emp.date_of_birth
+            ? calculateYears(
+                typeof emp.date_of_birth === 'string'
+                  ? emp.date_of_birth
+                  : emp.date_of_birth.toISOString()
+              )
+            : null;
+          const computedYears = emp.first_join_date
+            ? calculateYears(
+                typeof emp.first_join_date === 'string'
+                  ? emp.first_join_date
+                  : emp.first_join_date.toISOString()
+              )
+            : null;
+          return {
+            ...emp,
+            age: ageFromDb ?? computedAge ?? null,
+            years_in_service: yearsFromDb ?? computedYears ?? null,
+          } as Employee;
+        });
 
         setEmployees(enrichedEmployees);
         setFilteredEmployees(enrichedEmployees);
@@ -94,17 +105,11 @@ const EmployeeDirectory = () => {
     const fetchViewColumns = async () => {
       if (!token) return;
       try {
-        const res = await fetch('http://localhost:8080/api/column-matrix/view-columns', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        if (!res.ok) throw new Error('Failed to fetch view columns');
-        const data = await res.json();
-        const cols = (data.columns || []).map((c: any) => ({
+        const data = await api.get<{ columns: { column_name: string; display_label?: string }[] }>('/api/column-matrix/view-columns');
+        type ApiColumn = { column_name: string; display_label?: string };
+        const cols = ((data.columns ?? []) as ApiColumn[]).map((c) => ({
           field: c.column_name as keyof Employee,
-          label: c.display_label as string,
+          label: (c.display_label ?? String(c.column_name)) as string,
         }));
         setViewColumns(cols);
         setVisibleColumns(cols);
@@ -164,13 +169,7 @@ const EmployeeDirectory = () => {
   };
 
   const deleteEmployee = async (employeeId: string) => {
-    const response = await fetch(`/api/employees/${employeeId}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Error ${response.status}: ${errorText}`);
-    }
+    await api.delete(`/api/employees/${employeeId}`);
     return true;
   };
 
@@ -266,16 +265,13 @@ const EmployeeDirectory = () => {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
-      </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout>
       <div className="space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
@@ -385,8 +381,8 @@ const EmployeeDirectory = () => {
 
         {/* Add flow now navigates to dedicated AddEmployee page */}
       </div>
-    </DashboardLayout>
   );
 };
 
 export default EmployeeDirectory;
+import { api } from '@/lib/apiClient';

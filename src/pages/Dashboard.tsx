@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+// DashboardLayout is provided by nested routing; remove local wrapper
 import EmployeeTable from '@/components/EmployeeTable';
 
 import EmployeeEditForm from '@/components/EmployeeEditForm';
@@ -43,14 +43,7 @@ const Dashboard = () => {
     const fetchEmployees = async () => {
       setIsLoading(true);
       try {
-        const res = await fetch('http://localhost:8080/api/employees', {
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json'
-          }
-        });
-        if (!res.ok) throw new Error('Failed to fetch employee data');
-        const employeesData: Employee[] = await res.json();
+        const employeesData = await api.get<Employee[]>('/api/employees');
 
         function calculateYears(fromDate: string): number {
           const from = new Date(fromDate);
@@ -63,11 +56,29 @@ const Dashboard = () => {
           return years;
         }
 
-        const enrichedEmployees = employeesData.map(emp => ({
-          ...emp,
-          age: emp.date_of_birth ? calculateYears(typeof emp.date_of_birth === 'string' ? emp.date_of_birth : emp.date_of_birth.toISOString()) : 0,
-          years_in_service: emp.first_join_date ? calculateYears(typeof emp.first_join_date === 'string' ? emp.first_join_date : emp.first_join_date.toISOString()) : 0,
-        }));
+        const enrichedEmployees = employeesData.map(emp => {
+          const ageFromDb = typeof emp.age === 'number' ? emp.age : null;
+          const yearsFromDb = typeof emp.years_in_service === 'number' ? emp.years_in_service : null;
+          const computedAge = emp.date_of_birth
+            ? calculateYears(
+                typeof emp.date_of_birth === 'string'
+                  ? emp.date_of_birth
+                  : emp.date_of_birth.toISOString()
+              )
+            : null;
+          const computedYears = emp.first_join_date
+            ? calculateYears(
+                typeof emp.first_join_date === 'string'
+                  ? emp.first_join_date
+                  : emp.first_join_date.toISOString()
+              )
+            : null;
+          return {
+            ...emp,
+            age: ageFromDb ?? computedAge ?? null,
+            years_in_service: yearsFromDb ?? computedYears ?? null,
+          } as Employee;
+        });
 
         setEmployees(enrichedEmployees);
       } catch (error) {
@@ -111,13 +122,7 @@ const Dashboard = () => {
   };
 
   const deleteEmployee = async (employeeId: string) => {
-    const response = await fetch(`/api/employees/${employeeId}`, {
-      method: 'DELETE',
-    });
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Error ${response.status}: ${errorText}`);
-    }
+    await api.delete(`/api/employees/${employeeId}`);
     return true;
   };
 
@@ -230,11 +235,9 @@ const Dashboard = () => {
 
   if (!currentUser || !allEmployees) {
     return (
-      <DashboardLayout>
         <div className="flex items-center justify-center h-64">
           <p className="text-muted-foreground">Loading...</p>
         </div>
-      </DashboardLayout>
     );
   }
   const downloadCSV = (csv: string, filename: string) => {
@@ -284,16 +287,13 @@ const Dashboard = () => {
 
   if (isLoading) {
     return (
-      <DashboardLayout>
         <div className="flex items-center justify-center h-64">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
         </div>
-      </DashboardLayout>
     );
   }
 
   return (
-    <DashboardLayout>
       <div className="space-y-6">
         {/* Welcome Header */}
         <div className="flex items-center justify-between">
@@ -512,13 +512,14 @@ const Dashboard = () => {
                     </Badge>
                   </div>
                   <div className="space-y-2">
-                    {[...new Set(employees.map(emp => emp.status))].map(stat => {
+                    {[...new Set(employees.map(emp => emp.status).filter(s => typeof s === 'string'))].map(stat => {
+                      const label = String(stat);
                       const count_stat = employees.filter(emp => emp.status === stat).length;
-                      const percentage = (count_stat / totalEmployees) * 100;
+                      const percentage = totalEmployees ? (count_stat / totalEmployees) * 100 : 0;
                       return (
-                        <div key={stat} className="space-y-1">
+                        <div key={label || 'Unknown'} className="space-y-1">
                           <div className="flex justify-between text-sm font-medium">
-                            <span>{stat.charAt(0).toUpperCase() + stat.slice(1)}</span>
+                            <span>{label ? label.charAt(0).toUpperCase() + label.slice(1) : 'Unknown'}</span>
                             <span>{count_stat} ({percentage.toFixed(1)}%)</span>
                           </div>
                           <div className="w-full bg-muted rounded-full h-2">
@@ -593,8 +594,8 @@ const Dashboard = () => {
 
         </Tabs>
       </div>
-    </DashboardLayout>
   );
 };
 
 export default Dashboard;
+import { api } from '@/lib/apiClient';

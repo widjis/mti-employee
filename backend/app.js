@@ -5,6 +5,7 @@ import openProjectRoutes from './routes/openProjectRoutes.js';
 import employeeExportRoutes from './routes/employeeExportRoutes.js';
 import roleColumnRoutes from './routes/roleColumnRoutes.js';
 import userRoutes from './routes/userRoutes.js';
+import rbacRoutes from './routes/rbacRoutes.js';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
@@ -148,6 +149,7 @@ app.use('/api/openproject', openProjectRoutes);
 app.use('/api/employee-export', employeeExportRoutes);
 app.use('/api', roleColumnRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/rbac', rbacRoutes);
 
 // Handle unmatched routes
 app.use(handleNotFound);

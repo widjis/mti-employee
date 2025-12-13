@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { User } from '@/types/user';
+import { api } from '@/lib/apiClient';
 
 interface AuthContextType {
   user: User | null;
@@ -35,28 +36,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setIsLoading(false);
   }, []);
 
+  interface LoginResponse {
+    success: boolean;
+    user: User;
+    token: string;
+    message?: string;
+  }
+
   const login = async (username: string, password: string, authType: 'local' | 'domain' = 'local'): Promise<boolean> => {
     setIsLoading(true);
 
     try {
-      const res = await fetch('/api/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password, authType }),
-      });
-
-      if (!res.ok) {
-        // API returned error status
-        const errorData = await res.json();
-        console.error('Login failed:', errorData.message || res.statusText);
-        setIsLoading(false);
-        return false;
-      }
-
-      const data = await res.json();
+      const data = await api.post<LoginResponse>('/api/login', { username, password, authType }, { skipAuth: true });
 
       if (data.success && data.user && data.token) {
-        setUser(data.user as User);
+        setUser(data.user);
         setToken(data.token);
         localStorage.setItem('user', JSON.stringify(data.user));
         localStorage.setItem('token', data.token);

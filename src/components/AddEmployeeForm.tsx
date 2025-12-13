@@ -118,18 +118,7 @@ const AddEmployeeForm: React.FC<AddEmployeeFormProps> = ({ onClose, onAdd }) => 
         setSuccess(false);
 
         try {
-            const response = await fetch('/api/employees', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(form),
-            });
-
-            if (!response.ok) {
-                const errorBody = await response.text();
-                throw new Error(`Error ${response.status}: ${errorBody}`);
-            }
+            await api.post('/api/employees', form);
             toast({
                 title: 'Success',
                 description: 'Employee added successfully',
@@ -137,11 +126,12 @@ const AddEmployeeForm: React.FC<AddEmployeeFormProps> = ({ onClose, onAdd }) => 
             });
             setForm(initialState);
             onClose();
-        } catch (error: any) {
-            setError(error.message || 'Unknown error occurred');
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Unknown error occurred';
+            setError(message);
             toast({
                 title: 'Error',
-                description: error.message || 'Failed to add employee',
+                description: message || 'Failed to add employee',
                 variant: 'destructive',
             });
         } finally {
@@ -893,3 +883,4 @@ const AddEmployeeForm: React.FC<AddEmployeeFormProps> = ({ onClose, onAdd }) => 
 };
 
 export default AddEmployeeForm;
+import { api } from '@/lib/apiClient';

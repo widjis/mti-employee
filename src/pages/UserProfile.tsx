@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import DashboardLayout from '@/components/layout/DashboardLayout';
+// DashboardLayout provided by router; remove local wrapper
 import { cn } from '@/lib/utils';
 
 const UserProfile: React.FC = () => {
@@ -133,19 +133,12 @@ const UserProfile: React.FC = () => {
     setIsChangingPassword(true);
 
     try {
-      const response = await fetch(`/api/users/${user.id}/password`, {
-        method: 'PUT',
-        headers: {
-          'Authorization': `Bearer ${localStorage.getItem('token')}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          currentPassword: currentPassword,
-          newPassword: newPassword
-        })
+      await api.put(`/api/users/${user.id}/password`, {
+        currentPassword,
+        newPassword,
       });
 
-      if (response.ok) {
+      {
         toast({
           title: "Success",
           description: "Password changed successfully",
@@ -158,13 +151,6 @@ const UserProfile: React.FC = () => {
         setCurrentPassword('');
         setNewPassword('');
         setConfirmPassword('');
-      } else {
-        const error = await response.json();
-        toast({
-          title: "Error",
-          description: error.message || "Failed to change password",
-          variant: "destructive"
-        });
       }
     } catch (error) {
       console.error('Error changing password:', error);
@@ -179,7 +165,6 @@ const UserProfile: React.FC = () => {
   };
 
   return (
-    <DashboardLayout>
       <div className="space-y-6">
         {/* Page Header */}
         <div className="flex items-center space-x-2">
@@ -360,8 +345,8 @@ const UserProfile: React.FC = () => {
           </Card>
         </div>
       </div>
-    </DashboardLayout>
   );
 };
 
 export default UserProfile;
+import { api } from '@/lib/apiClient';

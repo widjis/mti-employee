@@ -4,6 +4,18 @@ import { Employee } from '@/types/user';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { toast } from '@/hooks/use-toast';  // Assuming you have this
+import { useAuth } from '@/context/AuthContext';
+import { hasPermission } from '@/types/user';
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from '@/components/ui/alert-dialog';
 
 interface EmployeeEditFormProps {
     employee: Employee;
@@ -12,48 +24,108 @@ interface EmployeeEditFormProps {
 }
 
 const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, onUpdated }) => {
+    const { user, token } = useAuth();
     const [formData, setFormData] = useState<Employee>(employee);
     const [errors, setErrors] = useState<{ [key in keyof Partial<Employee>]?: string }>({});
     const [loading, setLoading] = useState(false);
+    const [isDirty, setIsDirty] = useState(false);
+    const canEditEmployees = user?.role ? hasPermission(user.role, 'employees', 'update') : false;
+    const isAuthorized = !!user && (
+        (user.role === 'superadmin' || user.role === 'admin' || user.role === 'hr_general') && canEditEmployees
+    );
+    
+    // Parse HTML date input (YYYY-MM-DD) into Date | null
+    const parseDateInput = (value: string): Date | null => {
+        if (!value) return null;
+        return new Date(value);
+    };
+    const [showDiscardDialog, setShowDiscardDialog] = useState(false);
 
     useEffect(() => {
         setFormData(employee);
         setErrors({});
     }, [employee]);
 
-    const handleChange = (field: keyof Employee, value: any) => {
+    // Map field keys to human-friendly labels for banner display
+    const requiredLabelMap: Record<string, string> = {
+        employee_id: 'Employee ID',
+        name: 'Name',
+        date_of_birth: 'Date of Birth',
+        join_date: 'Join Date',
+        department: 'Department',
+        employment_status: 'Employment Status',
+        end_contract: 'End Contract',
+        status: 'Status'
+    };
+
+    const handleChange = <K extends keyof Employee>(field: K, value: Employee[K]) => {
         setFormData(prev => ({ ...prev, [field]: value }));
         setErrors(prev => ({ ...prev, [field]: undefined }));
+        setIsDirty(true);
     };
 
     const validate = () => {
         const newErrors: typeof errors = {};
-        if (!formData.employee_id || formData.employee_id.trim() === '') {
+        // Always required (read-only in edit but must exist)
+        if (!formData.employee_id || (typeof formData.employee_id === 'string' && formData.employee_id.trim() === '')) {
             newErrors.employee_id = 'Employee ID is required';
         }
-        if (!formData.name || formData.name.trim() === '') {
+
+        // Required text fields
+        if (!formData.name || (typeof formData.name === 'string' && formData.name.trim() === '')) {
             newErrors.name = 'Name is required';
         }
+
+        // Required select/text fields
+        if (!formData.department || (typeof formData.department === 'string' && formData.department.trim() === '')) {
+            newErrors.department = 'Department is required';
+        }
+        if (!formData.employment_status || (typeof formData.employment_status === 'string' && formData.employment_status.trim() === '')) {
+            newErrors.employment_status = 'Employment Status is required';
+        }
+        if (!formData.status || (typeof formData.status === 'string' && formData.status.trim() === '')) {
+            newErrors.status = 'Status is required';
+        }
+
+        // Required date fields
+        const isValidDate = (d: Date | string | number | null | undefined): boolean => {
+            if (!d) return false;
+            const dt = d instanceof Date ? d : new Date(d);
+            return !isNaN(dt.getTime());
+        };
+        if (!formData.date_of_birth || !isValidDate(formData.date_of_birth)) {
+            newErrors.date_of_birth = !formData.date_of_birth ? 'Date of Birth is required' : 'Date of Birth must be a valid date';
+        }
+        if (!formData.join_date || !isValidDate(formData.join_date)) {
+            newErrors.join_date = !formData.join_date ? 'Join Date is required' : 'Join Date must be a valid date';
+        }
+
+        // Conditional: end_contract required when employment_status is Contract
+        if (formData.employment_status === 'Contract') {
+            if (!formData.end_contract || !isValidDate(formData.end_contract)) {
+                newErrors.end_contract = !formData.end_contract ? 'End Contract is required for Contract employment' : 'End Contract must be a valid date';
+            }
+        }
+
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!isAuthorized) {
+            toast({
+                title: 'Access denied',
+                description: `Your role (${user?.role ?? 'unknown'}) cannot edit employees.`,
+                variant: 'destructive',
+            });
+            return;
+        }
         if (!validate()) return;
         setLoading(true);
 
         try {
-            const response = await fetch(`/api/employees/${formData.employee_id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(formData),
-            });
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Error ${response.status}: ${errorText}`);
-            }
+            await api.put(`/api/employees/${formData.employee_id}`, formData);
 
             toast({
                 title: 'Success',
@@ -62,11 +134,13 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
             });
 
             if (onUpdated) onUpdated(formData); // notify parent if needed
+            setIsDirty(false);
             onClose();
-        } catch (error: any) {
+        } catch (error: unknown) {
+            const message = error instanceof Error ? error.message : 'Failed to update employee';
             toast({
                 title: 'Error',
-                description: error.message || 'Failed to update employee',
+                description: message,
                 variant: 'destructive',
             });
         } finally {
@@ -74,11 +148,54 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
         }
     };
 
+    const handleCancel = () => {
+        if (isDirty) {
+            setShowDiscardDialog(true);
+        } else {
+            onClose();
+        }
+    };
+
+    useEffect(() => {
+        const onKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape') {
+                e.preventDefault();
+                handleCancel();
+            } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'enter') {
+                const form = document.getElementById('editForm') as HTMLFormElement | null;
+                if (form && isAuthorized) {
+                    form.requestSubmit();
+                }
+            }
+        };
+        window.addEventListener('keydown', onKeyDown);
+        return () => window.removeEventListener('keydown', onKeyDown);
+    }, [isDirty, isAuthorized]);
+
     return (
-        <Modal onClose={onClose}>
+        <>
+        <Modal onClose={handleCancel}>
             <div className="p-6 box-border flex flex-col h-[750px] max-h-[80vh] w-[520px] ml-6">
                 <h2 className="text-lg font-semibold mb-4">Edit {formData.name}'s Data</h2>
                 <div className="overflow-y-auto flex-grow p-4">
+                    {!isAuthorized && (
+                        <div className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-red-700">
+                            <p className="font-medium">You don’t have permission to edit employees.</p>
+                            <p className="text-sm mt-1">Current role: <span className="font-semibold">{user?.role ?? 'Unknown'}</span>. Please contact an administrator.</p>
+                        </div>
+                    )}
+                    {Object.keys(errors).some(k => requiredLabelMap[k as string]) && (
+                        <div className="mb-4 rounded-md border border-red-300 bg-red-50 p-3 text-red-700">
+                            <p className="font-medium">Missing required fields:</p>
+                            <ul className="list-disc ml-5 mt-1">
+                                {Object.keys(errors)
+                                    .filter(k => requiredLabelMap[k as string])
+                                    .map(k => (
+                                        <li key={k}>{requiredLabelMap[k as string]}</li>
+                                    ))}
+                            </ul>
+                        </div>
+                    )}
                     <form id="editForm" onSubmit={handleSubmit} className="space-y-4 max-w-md">
                         <div>
                             <label className="block mb-1 font-medium">Insurance Endorsement</label>
@@ -88,7 +205,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                     name="insurance_endorsement"
                                     value="Y"
                                     checked={formData.insurance_endorsement === 'Y'}
-                                    onChange={e => handleChange('insurance_endorsement', e.target.value)}
+                                    onChange={e => handleChange('insurance_endorsement', e.target.value as Employee['insurance_endorsement'])}
                                 />
                                 <span className="ml-2">Yes</span>
                             </label>
@@ -98,7 +215,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                     name="insurance_endorsement"
                                     value="N"
                                     checked={formData.insurance_endorsement === 'N'}
-                                    onChange={e => handleChange('insurance_endorsement', e.target.value)}
+                                    onChange={e => handleChange('insurance_endorsement', e.target.value as Employee['insurance_endorsement'])}
                                 />
                                 <span className="ml-2">No</span>
                             </label>
@@ -112,7 +229,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                     name="insurance_owlexa"
                                     value="Y"
                                     checked={formData.insurance_owlexa === 'Y'}
-                                    onChange={e => handleChange('insurance_owlexa', e.target.value)}
+                                    onChange={e => handleChange('insurance_owlexa', e.target.value as Employee['insurance_owlexa'])}
                                 />
                                 <span className="ml-2">Yes</span>
                             </label>
@@ -122,7 +239,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                     name="insurance_owlexa"
                                     value="N"
                                     checked={formData.insurance_owlexa === 'N'}
-                                    onChange={e => handleChange('insurance_owlexa', e.target.value)}
+                                    onChange={e => handleChange('insurance_owlexa', e.target.value as Employee['insurance_owlexa'])}
                                 />
                                 <span className="ml-2">No</span>
                             </label>
@@ -136,7 +253,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                     name="insurance_fpg"
                                     value="Y"
                                     checked={formData.insurance_fpg === 'Y'}
-                                    onChange={e => handleChange('insurance_fpg', e.target.value)}
+                                    onChange={e => handleChange('insurance_fpg', e.target.value as Employee['insurance_fpg'])}
                                 />
                                 <span className="ml-2">Yes</span>
                             </label>
@@ -146,7 +263,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                     name="insurance_fpg"
                                     value="N"
                                     checked={formData.insurance_fpg === 'N'}
-                                    onChange={e => handleChange('insurance_fpg', e.target.value)}
+                                    onChange={e => handleChange('insurance_fpg', e.target.value as Employee['insurance_fpg'])}
                                 />
                                 <span className="ml-2">No</span>
                             </label>
@@ -160,6 +277,9 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                 onChange={e => handleChange('employee_id', e.target.value)}
                                 readOnly
                             />
+                            {errors.employee_id && (
+                                <p className="text-red-600 text-xs mt-1">{errors.employee_id}</p>
+                            )}
                         </div>
 
                         <div>
@@ -172,12 +292,15 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                         </div>
 
                         <div>
-                            <label className="block mb-1 font-medium">Name</label>
+                            <label className="block mb-1 font-medium">Name *</label>
                             <Input
                                 type="text"
                                 value={formData.name}
                                 onChange={e => handleChange('name', e.target.value)}
                             />
+                            {errors.name && (
+                                <p className="text-red-600 text-xs mt-1">{errors.name}</p>
+                            )}
                         </div>
 
                         <div>
@@ -189,7 +312,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                             />
                         </div>
                         <div>
-                            <label className="block mb-1 font-medium">Date of Birth</label>
+                            <label className="block mb-1 font-medium">Date of Birth *</label>
                             <Input
                                 type="date"
                                 value={
@@ -197,8 +320,11 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                         ? new Date(formData.date_of_birth).toISOString().substring(0, 10)
                                         : ''
                                 }
-                                onChange={e => handleChange('date_of_birth', e.target.value)}
+                                onChange={e => handleChange('date_of_birth', parseDateInput(e.target.value))}
                             />
+                            {errors.date_of_birth && (
+                                <p className="text-red-600 text-xs mt-1">{errors.date_of_birth}</p>
+                            )}
                         </div>
 
                         <div>
@@ -316,7 +442,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                             <select
                                 id="blood_type"
                                 value={formData.blood_type}
-                                onChange={e => handleChange('blood_type', e.target.value)}
+                                onChange={e => handleChange('blood_type', e.target.value as Employee['blood_type'])}
                                 className="block w-full border border-gray-300 rounded px-3 py-2"
                             >
                                 <option value="" disabled>
@@ -451,7 +577,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                         ? new Date(formData.first_join_date_merdeka).toISOString().substring(0, 10)
                                         : ''
                                 }
-                                onChange={e => handleChange('first_join_date_merdeka', e.target.value)}
+                                onChange={e => handleChange('first_join_date_merdeka', parseDateInput(e.target.value))}
                             />
                         </div>
                         <div>
@@ -463,7 +589,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                         ? new Date(formData.transfer_merdeka).toISOString().substring(0, 10)
                                         : ''
                                 }
-                                onChange={e => handleChange('transfer_merdeka', e.target.value)}
+                                onChange={e => handleChange('transfer_merdeka', parseDateInput(e.target.value))}
                             />
                         </div>
                         <div>
@@ -475,11 +601,11 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                         ? new Date(formData.first_join_date).toISOString().substring(0, 10)
                                         : ''
                                 }
-                                onChange={e => handleChange('first_join_date', e.target.value)}
+                                onChange={e => handleChange('first_join_date', parseDateInput(e.target.value))}
                             />
                         </div>
                         <div>
-                            <label className="block mb-1 font-medium">Join Date</label>
+                            <label className="block mb-1 font-medium">Join Date *</label>
                             <Input
                                 type="date"
                                 value={
@@ -487,12 +613,15 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                         ? new Date(formData.join_date).toISOString().substring(0, 10)
                                         : ''
                                 }
-                                onChange={e => handleChange('join_date', e.target.value)}
+                                onChange={e => handleChange('join_date', parseDateInput(e.target.value))}
                             />
+                            {errors.join_date && (
+                                <p className="text-red-600 text-xs mt-1">{errors.join_date}</p>
+                            )}
                         </div>
                         <div>
                             <label className="block mb-1 font-medium" htmlFor="employment_status">
-                                Employment Status
+                                Employment Status *
                             </label>
                             <select
                                 id="employment_status"
@@ -506,9 +635,12 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                 <option value="Permanent">Permanent</option>
                                 <option value="Contract">Contract</option>
                             </select>
+                            {errors.employment_status && (
+                                <p className="text-red-600 text-xs mt-1">{errors.employment_status}</p>
+                            )}
                         </div>
                         <div>
-                            <label className="block mb-1 font-medium">End Contract</label>
+                            <label className="block mb-1 font-medium">{formData.employment_status === 'Contract' ? 'End Contract *' : 'End Contract'}</label>
                             <Input
                                 type="date"
                                 value={
@@ -516,8 +648,11 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                         ? new Date(formData.end_contract).toISOString().substring(0, 10)
                                         : ''
                                 }
-                                onChange={e => handleChange('end_contract', e.target.value)}
+                                onChange={e => handleChange('end_contract', parseDateInput(e.target.value))}
                             />
+                            {errors.end_contract && (
+                                <p className="text-red-600 text-xs mt-1">{errors.end_contract}</p>
+                            )}
                         </div>
                         <div>
                             <label className="block mb-1 font-medium">Company Office</label>
@@ -537,7 +672,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                         </div>
                         <div>
                             <label className="block mb-1 font-medium" htmlFor="department">
-                                Department
+                                Department *
                             </label>
                             <select
                                 id="department"
@@ -562,6 +697,9 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                 <option value="Supply Chain Management">Supply Chain Management</option>
                                 <option value="Technical Service">Technical Service</option>
                             </select>
+                            {errors.department && (
+                                <p className="text-red-600 text-xs mt-1">{errors.department}</p>
+                            )}
                         </div>
                         <div>
                             <label className="block mb-1 font-medium">Section</label>
@@ -698,7 +836,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                         ? new Date(formData.travel_in).toISOString().substring(0, 10)
                                         : ''
                                 }
-                                onChange={e => handleChange('travel_in', e.target.value)}
+                                onChange={e => handleChange('travel_in', parseDateInput(e.target.value))}
                             />
                         </div>
                         <div>
@@ -710,7 +848,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                         ? new Date(formData.travel_out).toISOString().substring(0, 10)
                                         : ''
                                 }
-                                onChange={e => handleChange('travel_out', e.target.value)}
+                                onChange={e => handleChange('travel_out', parseDateInput(e.target.value))}
                             />
                         </div>
                         <div>
@@ -719,10 +857,10 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                                 type="date"
                                 value={
                                     formData.terminated_date && !isNaN(new Date(formData.terminated_date).getTime())
-                                        ? new Date(formData.travel_out).toISOString().substring(0, 10)
+                                        ? new Date(formData.terminated_date).toISOString().substring(0, 10)
                                         : ''
                                 }
-                                onChange={e => handleChange('terminated_date', e.target.value)}
+                                onChange={e => handleChange('terminated_date', parseDateInput(e.target.value))}
                             />
                         </div>
                         <div>
@@ -745,7 +883,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                             <label className="block mb-1 font-medium">Blacklist MTI</label>
                             <select
                                 value={formData.blacklist_mti}
-                                onChange={e => handleChange('blacklist_mti', e.target.value)}
+                                onChange={e => handleChange('blacklist_mti', e.target.value as Employee['blacklist_mti'])}
                                 className="block w-full border border-gray-300 rounded px-3 py-2"
                             >
                                 <option value="Y">Yes</option>
@@ -756,7 +894,7 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                             <label className="block mb-1 font-medium">Blacklist IMIP</label>
                             <select
                                 value={formData.blacklist_imip}
-                                onChange={e => handleChange('blacklist_imip', e.target.value)}
+                                onChange={e => handleChange('blacklist_imip', e.target.value as Employee['blacklist_imip'])}
                                 className="block w-full border border-gray-300 rounded px-3 py-2"
                             >
                                 <option value="Y">Yes</option>
@@ -780,29 +918,52 @@ const EmployeeEditForm: React.FC<EmployeeEditFormProps> = ({ employee, onClose, 
                             />
                         </div>
                         <div>
-                            <label className="block mb-1 font-medium">Status Employement</label>
+                            <label className="block mb-1 font-medium">Status Employement *</label>
                             <select
                                 value={formData.status}
-                                onChange={e => handleChange('status', e.target.value)}
+                                onChange={e => handleChange('status', e.target.value as Employee['status'])}
                                 className="block w-full border border-gray-300 rounded px-3 py-2"
                             >
                                 <option value="Active">Active</option>
                                 <option value="Inactive">Inactive</option>
                             </select>
+                            {errors.status && (
+                                <p className="text-red-600 text-xs mt-1">{errors.status}</p>
+                            )}
                         </div>
                     </form>
                 </div>
                 <div className="flex justify-end space-x-2 flex-shrink-0 border-t pt-4">
-                    <Button type="button" variant="outline" onClick={onClose}>
+                    <Button type="button" variant="outline" onClick={handleCancel}>
                         Cancel
                     </Button>
-                    <Button type="submit" variant="default" form="editForm">
+                    <Button type="submit" variant="default" form="editForm" disabled={!isAuthorized || loading} aria-disabled={!isAuthorized || loading}>
                         Save
                     </Button>
                 </div>
             </div>
         </Modal>
+        {showDiscardDialog && (
+            <AlertDialog open={showDiscardDialog} onOpenChange={setShowDiscardDialog}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Discard unsaved changes?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            You have unsaved edits. If you leave now, changes will be lost.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel onClick={() => setShowDiscardDialog(false)}>Keep editing</AlertDialogCancel>
+                        <AlertDialogAction onClick={() => { setShowDiscardDialog(false); setIsDirty(false); onClose(); }}>
+                            Discard changes
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+        )}
+        </>
     );
 };
 
 export default EmployeeEditForm;
+import { api } from '@/lib/apiClient';

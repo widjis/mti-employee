@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Employee, User, accessConfigs } from '@/types/user';
+import { Employee, User, accessConfigs, ROLE_PERMISSIONS } from '@/types/user';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -91,6 +91,8 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
   const { user } = useAuth();
   const userRole = user?.role as User['role'];
   const config = accessConfigs[userRole];
+  const canEdit = !!onEdit && ROLE_PERMISSIONS[userRole]?.employees.update === true;
+  const canDelete = !!onDelete && ROLE_PERMISSIONS[userRole]?.employees.delete === true;
 
   const [searchTerm, setSearchTerm] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: keyof Employee | null; direction: 'asc' | 'desc' | null }>({
@@ -98,8 +100,11 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
     direction: null,
   });
   const defaultColumnWidth = 150;
-  const effectiveFields = (columns?.map(c => c.field) ?? config.visibleFields) as (keyof Employee)[];
+  const effectiveFieldsRaw = (columns?.map(c => c.field) ?? config.visibleFields) as (keyof Employee)[];
+  const effectiveFields = Array.from(new Set(effectiveFieldsRaw)) as (keyof Employee)[];
   const labelMap = new Map<string, string>((columns ?? []).map(c => [String(c.field), c.label]));
+  // Stable key for effect dependencies; normalizes by sorting to avoid re-runs due to order changes
+  const effectiveFieldsKey = useMemo(() => [...effectiveFields].sort().join('|'), [effectiveFields]);
   const [columnsWidth, setColumnsWidth] = useState<Record<string, number>>(() =>
     effectiveFields.reduce((acc, field) => {
       acc[String(field)] = defaultColumnWidth;
@@ -107,9 +112,31 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
     }, {} as Record<string, number>)
   );
 
-  const formatDate = (value: any) => {
+  // Keep column widths in sync when visible columns change dynamically
+  // Avoid infinite update loops by only updating when content actually changes
+  React.useEffect(() => {
+    setColumnsWidth(prev => {
+      const next: Record<string, number> = {};
+      for (const field of effectiveFields) {
+        const key = String(field);
+        next[key] = prev[key] ?? defaultColumnWidth;
+      }
+
+      const prevKeys = Object.keys(prev);
+      const nextKeys = Object.keys(next);
+      const keysChanged = prevKeys.length !== nextKeys.length || prevKeys.some(k => !Object.prototype.hasOwnProperty.call(next, k));
+      const valuesChanged = nextKeys.some(k => prev[k] !== next[k]);
+
+      if (keysChanged || valuesChanged) {
+        return next;
+      }
+      return prev;
+    });
+  }, [effectiveFieldsKey]);
+
+  const formatDate = (value: string | number | Date | null | undefined) => {
     if (!value) return '';
-    const date = typeof value === 'string' ? new Date(value) : value;
+    const date = typeof value === 'string' || typeof value === 'number' ? new Date(value) : value;
     if (!(date instanceof Date) || isNaN(date.getTime())) return '';
     return date.toISOString().slice(0, 10);
   };
@@ -195,11 +222,11 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
         <table className="min-w-max table-fixed border-collapse">
           <thead>
             <tr>
-              <th style={{ width: 80 }}>{userRole === 'admin' ? 'ACTIONS' : null}</th>
+              <th style={{ width: 80 }}>{canEdit || canDelete ? 'ACTIONS' : null}</th>
               {effectiveFields.map(field => (
                 <Resizable
                   key={String(field)}
-                  width={columnsWidth[String(field)]}
+                  width={columnsWidth[String(field)] ?? defaultColumnWidth}
                   height={0}
                   handle={
                     <span
@@ -223,8 +250,8 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
                   <th
                     onClick={() => requestSort(field)}
                     style={{
-                      width: columnsWidth[String(field)],
-                      maxWidth: columnsWidth[String(field)],
+                      width: columnsWidth[String(field)] ?? defaultColumnWidth,
+                      maxWidth: columnsWidth[String(field)] ?? defaultColumnWidth,
                       position: 'relative',
                       userSelect: 'none',
                       whiteSpace: 'normal',
@@ -249,7 +276,7 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
             {sortedEmployees.map(employee => (
               <tr key={employee.employee_id} className="hover:bg-muted">
                 <td className="border px-6 py-4 whitespace-nowrap overflow-hidden text-ellipsis align-middle text-center">
-                  {userRole === 'admin' && (
+                  {(canEdit || canDelete) && (
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" className="h-8 w-8 p-0">
@@ -258,13 +285,13 @@ const EmployeeTable: React.FC<EmployeeTableProps> = ({
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end">
-                        {onEdit && (
+                        {canEdit && (
                           <DropdownMenuItem onClick={() => onEdit(employee)}>
                             <Edit className="mr-2 h-4 w-4" />
                             Edit
                           </DropdownMenuItem>
                         )}
-                        {onDelete && (
+                        {canDelete && (
                           <DropdownMenuItem onClick={() => onDelete(employee.employee_id)}>
                             <Trash2 className="mr-2 h-4 w-4" />
                             Delete

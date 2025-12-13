@@ -4,7 +4,7 @@ import { Navigate } from 'react-router-dom';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
-  requireRole?: 'admin' | 'viewer';
+  requireRole?: 'admin' | 'viewer' | 'superadmin';
 }
 
 const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireRole }) => {
@@ -22,7 +22,7 @@ const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children, requireRole }
     return <Navigate to="/login" replace />;
   }
 
-  if (requireRole && user.role !== requireRole) {
+  if (requireRole && user.role !== requireRole && user.role !== 'superadmin') {
     return <Navigate to="/dashboard" replace />;
   }
 

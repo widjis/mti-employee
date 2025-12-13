@@ -2,8 +2,13 @@ import * as React from "react"
 
 import { cn } from "@/lib/utils"
 
-const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
-  ({ className, type, ...props }, ref) => {
+type InputProps = Omit<React.ComponentProps<'input'>, 'value'> & {
+  value?: string | number | readonly string[] | null;
+};
+
+const Input = React.forwardRef<HTMLInputElement, InputProps>(
+  ({ className, type, value, ...props }, ref) => {
+    const normalizedValue = value ?? '';
     return (
       <input
         type={type}
@@ -12,6 +17,7 @@ const Input = React.forwardRef<HTMLInputElement, React.ComponentProps<"input">>(
           className
         )}
         ref={ref}
+        value={normalizedValue}
         {...props}
       />
     )

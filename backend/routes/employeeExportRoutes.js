@@ -1,5 +1,9 @@
 import express from 'express';
 import XLSX from 'xlsx';
+import ExcelJS from 'exceljs';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 import { authenticateToken, authorizeRoles } from '../middleware/auth.js';
 import { handleValidationErrors } from '../middleware/validation.js';
 import { query } from 'express-validator';
@@ -7,6 +11,19 @@ import { sql, poolPromise } from '../db.js';
 import { getAllowedSheets } from '../config/roleColumnMapping.js';
 
 const router = express.Router();
+
+// Load column enums for options and checklist detection
+let COLUMN_ENUMS = {};
+try {
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirnameESM = path.dirname(__filename);
+  const enumsPath = path.resolve(__dirnameESM, '..', 'config', 'column_enums.json');
+  if (fs.existsSync(enumsPath)) {
+    COLUMN_ENUMS = JSON.parse(fs.readFileSync(enumsPath, 'utf8')) || {};
+  }
+} catch (e) {
+  // non-fatal; proceed without enums
+}
 
 // Helper: derive IND/EXP and active/inactive flags from available fields
 function deriveFlags(employee) {
@@ -81,9 +98,21 @@ async function getDbAllowedExportColumns(roleId) {
 // Helper: build Excel headers map from catalog entries
 function buildExcelHeadersMap(catalogRows) {
   const headers = {};
+  const used = new Set();
   for (const row of catalogRows) {
-    const header = row.display_label ? row.display_label : formatHeader(row.column_name);
+    let header = row.display_label ? row.display_label : formatHeader(row.column_name);
+    // Ensure date columns have a clear 'Date' token in header; fall back to formatted column name if missing
+    const isDateColumnName = /(^|_)date($|_)/i.test(row.column_name);
+    if (isDateColumnName && !/\bdate\b/i.test(header)) {
+      header = formatHeader(row.column_name); // e.g., 'Date Of Birth', 'Join Date'
+    }
+    // Avoid collisions: if header already used for a different column, prefer formatted column name
+    if (used.has(header)) {
+      const alt = formatHeader(row.column_name);
+      header = used.has(alt) ? `${alt} (${row.table_name || 'data'})` : alt;
+    }
     headers[row.column_name] = header;
+    used.add(header);
   }
   return headers;
 }
@@ -197,6 +226,89 @@ router.get('/data',
         // Create workbook
         const workbook = XLSX.utils.book_new();
         const worksheet = XLSX.utils.json_to_sheet(excelData);
+
+        // Ensure date columns display as dd/mm/yyyy in Excel
+        const DATE_DB_FIELDS = [
+          'date_of_birth',
+          'first_join_date_merdeka',
+          'transfer_merdeka',
+          'first_join_date',
+          'join_date',
+          'end_contract',
+          'travel_in',
+          'travel_out',
+          'terminated_date'
+        ];
+        const dateHeaders = new Set(
+          DATE_DB_FIELDS
+            .filter((f) => excelHeaders[f])
+            .map((f) => excelHeaders[f])
+        );
+        // Only treat columns as date when header matches our exact mapped date headers.
+        // This avoids accidental coercion for fields like 'Place of Birth'.
+        const isDateHeader = (text) => !!text && dateHeaders.has(text);
+
+        if (worksheet['!ref']) {
+          const range = XLSX.utils.decode_range(worksheet['!ref']);
+          // Build a header map from row 1: col index -> header text
+          const headerByCol = {};
+          for (let c = range.s.c; c <= range.e.c; c++) {
+            const cellAddr = XLSX.utils.encode_cell({ r: range.s.r, c });
+            const cell = worksheet[cellAddr];
+            const headerText = cell && cell.v ? String(cell.v) : '';
+            headerByCol[c] = headerText;
+          }
+          // Iterate data rows and coerce date cells to date type with format
+          for (let r = range.s.r + 1; r <= range.e.r; r++) {
+            for (let c = range.s.c; c <= range.e.c; c++) {
+              const headerText = headerByCol[c];
+              if (!isDateHeader(headerText)) continue;
+              const addr = XLSX.utils.encode_cell({ r, c });
+              const cell = worksheet[addr];
+              if (!cell) continue;
+              const val = cell.v;
+              if (val === undefined || val === null || val === '') continue;
+              let d;
+              if (val instanceof Date) {
+                d = val;
+              } else if (typeof val === 'number') {
+                // Excel serial number to JS Date (roughly)
+                const utcDays = Math.floor(val - 25569);
+                const utcValue = utcDays * 86400;
+                const di = new Date(utcValue * 1000);
+                d = new Date(di.getFullYear(), di.getMonth(), di.getDate());
+              } else if (typeof val === 'string') {
+                // Handle ISO-like strings including extended years with leading '+' (e.g., +043845-01-01T00:00:00.000Z)
+                const isoMatch = val.match(/^([+-]?\d{4,})-(\d{2})-(\d{2})T/);
+                if (isoMatch) {
+                  const y = parseInt(isoMatch[1], 10);
+                  const m = parseInt(isoMatch[2], 10);
+                  const dDay = parseInt(isoMatch[3], 10);
+                  if (y >= 1900 && y <= 9999) {
+                    d = new Date(y, m - 1, dDay);
+                  } else {
+                    // Excel cannot represent years beyond 9999; write a human-readable string
+                    const dd = String(dDay).padStart(2, '0');
+                    const mm = String(m).padStart(2, '0');
+                    worksheet[addr] = { t: 's', v: `${dd}/${mm}/${y}` };
+                    continue;
+                  }
+                } else {
+                  const tryParse = Date.parse(val);
+                  d = isNaN(tryParse) ? null : new Date(tryParse);
+                }
+              }
+              if (d && !isNaN(d.getTime())) {
+                // Excel stores dates as numeric serials; write as number with format
+                const serial = Math.floor(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()) / 86400000) + 25569;
+                worksheet[addr] = { t: 'n', v: serial, z: 'dd/mm/yyyy' };
+              } else {
+                // As a fallback, leave original value but set text format
+                worksheet[addr] = { t: 's', v: String(val) };
+              }
+            }
+          }
+        }
         
         // Set column widths
         const columnWidths = [
@@ -353,45 +465,46 @@ router.get('/template',
       const allowedColumns = catalogRows.map(r => r.column_name);
       const excelHeaders = buildExcelHeadersMap(catalogRows);
       
-      // Create template with headers only
-      const templateData = [{}];
-      Object.keys(excelHeaders).forEach(dbField => {
-        const excelHeader = excelHeaders[dbField];
-        templateData[0][excelHeader] = '';
+      // Build ExcelJS workbook with header hints and example options
+      const wb = new ExcelJS.Workbook();
+      const ws = wb.addWorksheet('Template');
+
+      const dbFields = Object.keys(excelHeaders);
+      const checklistFields = Array.isArray(COLUMN_ENUMS['checklist_fields'])
+        ? Array.from(new Set([...COLUMN_ENUMS['checklist_fields'], 'insurance_endorsement','insurance_owlexa','insurance_fpg','blacklist_mti','blacklist_imip']))
+        : ['insurance_endorsement','insurance_owlexa','insurance_fpg','blacklist_mti','blacklist_imip'];
+      const labeledHeaders = dbFields.map((dbField) => excelHeaders[dbField]);
+      const exampleRow = dbFields.map((dbField) => {
+        if (Array.isArray(COLUMN_ENUMS[dbField]) && COLUMN_ENUMS[dbField].length) {
+          const opts = COLUMN_ENUMS[dbField];
+          return `${opts[0]} (Dropdown: ${opts.join(', ')})`;
+        }
+        if (dbField === 'gender') return 'M';
+        if (checklistFields.includes(dbField)) return '0 (0,1)';
+        return '';
       });
-      // Include derived headers in template for convenience
-      ['IND Active', 'IND Inactive', 'EXP Active', 'EXP Inactive'].forEach(h => {
-        templateData[0][h] = '';
-      });
-      
-      // Create workbook
-      const workbook = XLSX.utils.book_new();
-      const worksheet = XLSX.utils.json_to_sheet(templateData);
-      
-      // Set column widths
-      const columnWidths = [
-        ...Object.values(excelHeaders).map(header => ({
-          wch: Math.max(header.length, 15)
-        })),
-        ...['IND Active', 'IND Inactive', 'EXP Active', 'EXP Inactive'].map(h => ({
-          wch: Math.max(h.length, 15)
-        }))
-      ];
-      worksheet['!cols'] = columnWidths;
-      
-      // Add worksheet to workbook
-      XLSX.utils.book_append_sheet(workbook, worksheet, `${roleInfo.name} Template`);
-      
-      // Generate Excel buffer
-      const excelBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
-      
-      // Set response headers for file download
+
+      const derivedHeaders = ['IND Active', 'IND Inactive', 'EXP Active', 'EXP Inactive'];
+      const fullHeaders = labeledHeaders.concat(derivedHeaders);
+      const fullExamples = exampleRow.concat(['', '', '', '']);
+
+      ws.addRow(fullHeaders);
+      const headerRow = ws.getRow(1);
+      headerRow.font = { bold: true };
+      headerRow.alignment = { vertical: 'middle' };
+      ws.addRow(fullExamples);
+
+      for (let i = 0; i < fullHeaders.length; i++) {
+        const col = ws.getColumn(i + 1);
+        col.width = Math.max(String(fullHeaders[i]).length, 15);
+      }
+
+      const buffer = await wb.xlsx.writeBuffer();
       const filename = `employee_template_${userRole}.xlsx`;
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
       res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      res.setHeader('Content-Length', excelBuffer.length);
-      
-      res.send(excelBuffer);
+      res.setHeader('Content-Length', buffer.length);
+      res.send(buffer);
       
     } catch (error) {
       console.error('Error generating template:', error);
